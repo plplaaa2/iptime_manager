@@ -1,0 +1,29 @@
+IPTIME-MIB DEFINITIONS ::= BEGIN
+
+--
+-- Top-level infrastructure of the ipTime enterprise MIB tree
+--
+
+IMPORTS
+    MODULE-IDENTITY, enterprises FROM SNMPv2-SMI;
+
+ipTime MODULE-IDENTITY
+    LAST-UPDATED "201411200000Z"
+    ORGANIZATION "www.iptime.com"
+    CONTACT-INFO    
+        "email:    support@iptime.com"
+    DESCRIPTION
+	"Top-level infrastructure of the ipTime enterprise MIB tree"
+    REVISION     "201411200000Z"
+    DESCRIPTION
+	"First draft"
+    ::= { enterprises 12874}
+
+
+--
+--  ipTime enterprise-specific management objects
+--
+
+ipTimeRouter              OBJECT IDENTIFIER ::= { ipTime 1 }
+
+END

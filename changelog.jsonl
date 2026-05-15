@@ -1,0 +1,38 @@
+{"version": "1.0.0", "date": "2026-05-15", "change": "Initial release with basic ipTIME support"}
+{"version": "1.1.0", "date": "2026-05-15", "change": "Added SNMP v3 support and improved device tracker for legacy firmware"}
+{"version": "1.2.0", "date": "2026-05-15", "change": "Implemented Beta UI (AX-series) support with manual cookie injection and URN updates"}
+{"version": "1.2.1", "date": "2026-05-15", "change": "Fixed NameError in __init__.py, switched to private session, and added comprehensive diagnostic logging"}
+{"version": "1.2.2", "date": "2026-05-15", "change": "Corrected IndentationError in api.py and added pysnmp availability check"}
+{"version": "1.2.3", "date": "2026-05-15", "change": "Added detailed ImportError logging for pysnmp diagnosis"}
+{"version": "1.2.4", "date": "2026-05-15", "change": "Downgraded pysnmp-lextudio to stable version 5.0.34 for better compatibility"}
+{"version": "1.2.5", "date": "2026-05-15", "change": "Added pyasn1 to requirements to resolve missing octets module error"}
+{"version": "1.2.6", "date": "2026-05-15", "change": "Pinned pyasn1 < 0.5.0 to resolve compatibility issues with newer versions"}
+{"version": "1.2.7", "date": "2026-05-15", "change": "Improved AES protocol imports for better compatibility with different pysnmp versions"}
+{"version": "1.2.8", "date": "2026-05-15", "change": "Added full traceback logging for SNMP request exceptions to aid debugging"}
+{"version": "1.2.9", "date": "2026-05-15", "change": "Fixed boot hang issue by skipping SNMP on initial setup"}
+{"version": "1.2.10", "date": "2026-05-15", "change": "Strengthened SNMP robustness with individual request timeouts and detailed logging"}
+{"version": "1.2.11", "date": "2026-05-15", "change": "Fixed SNMP config key typos to ensure v3 settings are correctly applied"}
+{"version": "1.3.0", "date": "2026-05-16", "change": "Stable Release: All sensors (DNS, MAC, Traffic) and ScannerEntity-based presence tracking are fully functional on AX-series"}
+{"version": "1.3.1", "date": "2026-05-16", "change": "Feat: Added Firmware Auto Upgrade button using SNMP setCmd (OID: 1.3.6.1.4.1.12874.1.5.6.0)"}
+{"version": "1.3.2", "date": "2026-05-16", "change": "Feat: Added binary sensors for WAN and network ports status using SNMP"}
+{"version": "1.3.7", "date": "2026-05-16", "change": "Feat: Expanded WiFi info with security and broadcast status via SNMP"}
+{"version": "1.3.8", "date": "2026-05-16", "change": "UI: Changed WiFi sensor state to SSID and moved channel info to attributes"}
+{"version": "1.3.9", "date": "2026-05-16", "change": "UI: Added band prefix (e.g., [5G]) to WiFi sensor state for better differentiation"}
+{"version": "1.3.10", "date": "2026-05-16", "change": "Fix: Robust OID prefix check in WiFi table walk to resolve 0 SSID detection issue"}
+{"version": "1.3.11", "date": "2026-05-16", "change": "Fix: Optimized interface (WAN/LAN) discovery using table walk for better multi-port support"}
+{"version": "1.3.12", "date": "2026-05-16", "change": "Fix: Robust tuple-based OID comparison for WiFi and interface discovery to resolve collection issues"}
+{"version": "1.3.14", "date": "2026-05-16", "change": "Fix: Corrected interface OID path (.1.2.2.1) to restore WAN/LAN sensor data"}
+{"version": "1.3.15", "date": "2026-05-16", "change": "UI: Simplified WiFi sensor name by removing redundant SSID from title"}
+{"version": "1.3.16", "date": "2026-05-16", "change": "UI: Updated WiFi interface binary sensors to show band in name and status as On/Off"}
+{"version": "1.3.17", "date": "2026-05-16", "change": "Fix: Switched to standard MIB-II OIDs with 64-bit counter support for accurate traffic monitoring"}
+{"version": "1.3.18", "date": "2026-05-16", "change": "Feat: Added WiFi SSID On/Off control switches (requires Read/Write SNMP mode)"}
+{"version": "1.3.19", "date": "2026-05-16", "change": "Fix: Robust dynamic indexing for SNMP table walks to resolve data collection drops"}
+{"version": "1.3.20", "date": "2026-05-16", "change": "Feat: Added WiFi SSID Broadcast (visibility) switches"}
+{"version": "1.3.21", "date": "2026-05-16", "change": "Fix: Added missing SNMP mode constants to const.py to resolve ImportError"}
+{"version": "1.3.24", "date": "2026-05-16", "change": "Fix: Accurate WiFi status detection using essEnable OID for On/Off synchronization"}
+{"version": "1.3.3", "date": "2026-05-16", "change": "Fix: Prevent SNMP-only entities from being registered if SNMP is disabled in settings"}
+{"version": "1.3.4", "date": "2026-05-16", "change": "Feat: Improved options flow with device management and manual MAC entry"}
+{"version": "1.3.5", "date": "2026-05-16", "change": "Feat: Added SNMP Read-Only mode to hide control entities (buttons) for safer monitoring"}
+{"version": "1.3.6", "date": "2026-05-16", "change": "Fix: Optimized WiFi data collection using table walk to ensure multi-band (5G/6G) channels are detected"}
+{"version": "1.3.25", "date": "2026-05-16", "change": "Refactor: Switched to ipTIME Enterprise MIB only for SNMP collection (Traffic sensors disabled)"}
+{"version": "1.3.26", "date": "2026-05-16", "change": "Fix: Corrected Reboot OID and restored missing variables in WiFi SNMP walk loop"}

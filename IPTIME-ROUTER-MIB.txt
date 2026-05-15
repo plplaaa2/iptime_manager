@@ -1,0 +1,461 @@
+IPTIME-ROUTER-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, Integer32, IpAddress,
+    NOTIFICATION-TYPE                       FROM SNMPv2-SMI
+    SnmpAdminString                         FROM SNMP-FRAMEWORK-MIB
+    ipTime                                  FROM IPTIME-MIB
+    DisplayString, RowStatus, StorageType,
+    PhysAddress, TimeStamp                 FROM SNMPv2-TC
+    MODULE-COMPLIANCE, OBJECT-GROUP, NOTIFICATION-GROUP
+                                            FROM SNMPv2-CONF
+    InetAddressType, InetAddress            FROM INET-ADDRESS-MIB
+;
+
+ipTimeRouter MODULE-IDENTITY
+    LAST-UPDATED "201411200000Z"
+    ORGANIZATION "www.iptime.com"
+    CONTACT-INFO    
+	 "email:    support@iptime.com"
+    DESCRIPTION
+	"Example MIB objects for ipTIME Router"
+    REVISION     "201411200000Z"
+    DESCRIPTION
+	"First draft"
+    ::= { ipTime 1 }
+
+routerInformation		OBJECT IDENTIFIER ::= { ipTimeRouter 1 }
+routerInterface 		OBJECT IDENTIFIER ::= { ipTimeRouter 2 }
+routerAddressTbl    		OBJECT IDENTIFIER ::= { ipTimeRouter 3 }
+routerWireless    		OBJECT IDENTIFIER ::= { ipTimeRouter 4 }
+routerSystem    		OBJECT IDENTIFIER ::= { ipTimeRouter 5 }
+routerTraps                     OBJECT IDENTIFIER ::= { ipTimeRouter 9000 }
+
+--
+-- routerInformation
+--
+
+Manufacturer OBJECT-TYPE
+    SYNTAX  DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS  current
+    DESCRIPTION
+            "Manufacturer Name (default: EFM networks)"
+    -- DEFVAL { "EFM networks" }
+    ::= { routerInformation 1 }
+
+Model OBJECT-TYPE
+    SYNTAX  DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS  current
+    DESCRIPTION
+            "Router Model Name"
+    ::= { routerInformation 2 }
+
+Version OBJECT-TYPE
+    SYNTAX  DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS  current
+    DESCRIPTION
+            "Router Version"
+    ::= { routerInformation 3 }
+
+--
+-- routerInterface
+--
+
+ifaceNumber  OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "The number of network interfaces on this system."
+    ::= { routerInterface 1 }
+
+ifaceTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF IfaceEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "A list of interface entries.  The number of entries is
+            given by the value of ifaceNumber."
+    ::= { routerInterface 2 }
+
+ifaceEntry OBJECT-TYPE
+    SYNTAX      IfaceEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing management information applicable to a
+            particular interface."
+    INDEX   { ifaceIndex }
+    ::= { ifaceTable 1 }
+
+IfaceEntry ::=
+    SEQUENCE {
+        ifaceIndex                 Integer32,
+        ifaceDescr                 DisplayString,
+        ifaceMode                  Integer32,
+        ifaceStatus                Integer32
+    }
+
+ifaceIndex OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "A unique value, greater than zero, for each interface."
+    ::= { ifaceEntry 1 }
+
+ifaceDescr OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Ethernet Port number or SSID."
+    ::= { ifaceEntry 2 }
+
+ifaceMode OBJECT-TYPE
+    SYNTAX      Integer32 {
+		other (0),
+		ethernet (1),
+		wireless-24g (2),
+		wireless-5g (3),
+		wireless-6g (4),
+		wireless-mlo (5)
+	}
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Type of interface"
+    ::= { ifaceEntry 3 }
+
+ifaceStatus OBJECT-TYPE
+    SYNTAX      Integer32 {
+		down (0),
+		up (1),
+		speed10M (10),
+		speed100M (100),
+		speed500M (500),
+		speed1G (1000),
+		speed2-5G (2500),
+		speed5G (5000),
+		speed10G (10000)
+	}
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "Status of interface"
+    ::= { ifaceEntry 4 }
+
+--
+-- routerAddressTbl
+--
+
+addressTable OBJECT-TYPE
+    SYNTAX  SEQUENCE OF AddressEntry
+    MAX-ACCESS  not-accessible
+    STATUS  current
+    DESCRIPTION
+            "The Address Tables"
+    ::= { routerAddressTbl 1 }
+
+addressEntry OBJECT-TYPE
+    SYNTAX  AddressEntry
+    MAX-ACCESS  not-accessible
+    STATUS  current
+    DESCRIPTION
+            "Each entry contains one NetworkAddress to
+            `physical' address equivalence."
+    INDEX   { atIpAddress }
+    ::= { addressTable 1 }
+
+AddressEntry ::=
+    SEQUENCE {
+        atIfDescr            DisplayString,
+        atPhysAddress        PhysAddress,
+        atIpAddress          IpAddress
+    }
+
+atIfDescr OBJECT-TYPE
+    SYNTAX  DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-only
+    STATUS  current
+    DESCRIPTION
+            "Ethernet Port number or SSID."
+    ::= { addressEntry 1 }
+
+atPhysAddress OBJECT-TYPE
+    SYNTAX  PhysAddress
+    MAX-ACCESS  read-only
+    STATUS  current
+    DESCRIPTION
+            "The physical address."
+    ::= { addressEntry 2 }
+
+atIpAddress OBJECT-TYPE
+    SYNTAX  IpAddress
+    MAX-ACCESS  read-only
+    STATUS  current
+    DESCRIPTION
+            "The IP address."
+    ::= { addressEntry 3 }
+
+--
+-- routerWireless
+--
+
+essNumber  OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "The number of ESS on this system."
+    ::= { routerWireless 1 }
+
+essTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF EssEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "A list of ESS entries."
+    ::= { routerWireless 2 }
+
+essEntry OBJECT-TYPE
+    SYNTAX      EssEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION
+            "An entry containing management information applicable to a
+            particular ESS."
+    INDEX   { essIndex }
+    ::= { essTable 1 }
+
+EssEntry ::=
+    SEQUENCE {
+        essIndex                Integer32,
+        essSsid                 DisplayString,
+        essSsidBroadcast        Integer32,
+	essMode                 Integer32,
+        essSecuritySet          Integer32,
+        ess8021xRadiusIPaddress IpAddress,
+        ess8021xRadiusPort      Integer32,
+	essChannelInfo          Integer32
+    }
+
+essIndex OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "A unique value, greater than zero, for each ESS."
+    ::= { essEntry 1 }
+
+essSsid OBJECT-TYPE
+    SYNTAX      DisplayString (SIZE (0..255))
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+            "SSID."
+    ::= { essEntry 2 }
+
+essSsidBroadcast OBJECT-TYPE
+    SYNTAX      Integer32 {
+		disable (0),
+		enable (1)
+	}
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+            "Status of SSID broadcat."
+    ::= { essEntry 3 }
+
+essMode OBJECT-TYPE
+    SYNTAX      Integer32 {
+		band2g (0),
+		band5g (1),
+		band5g2 (2),
+		band6g (3),
+		band6g2 (4),
+		mlo (8)
+	}
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+            "(0)2.4G, (1)5G (2)5G2 (3)6G (4)6G2 (8)MLO"
+    ::= { essEntry 4 }
+
+essSecuritySet OBJECT-TYPE
+    SYNTAX      Integer32 {
+		no-encrypt (0),
+		wpa2psk-aes (1),
+		wpapskwpa2psk-aes (2),
+		wpapsk-aes (3),
+		wpa3sae-aes (4),
+		wpa3saewpa2psk-aes (5),
+		wpa2psk-tkipaes (6),
+		wpapskwpa2psk-tkipaes (7),
+		wpapsk-tkipaes (8),
+		wpapsk-tkip (9),
+		wpa2psk-tkip (10),
+		wpapskwpa2psk-tkip (11),
+		auto-wep (12),
+		open-wep (13),
+		shared-wep (14),
+		wpa2-aes (15),
+		wpawpa2-tkipaes (16),
+		wpa-aes (17),
+		wpa3-aes (18),
+		owe-aes (19)
+	}
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+          "Authentication & Encryption Set
+		no-encrypt (0),
+		wpa2psk-aes (1),
+		wpapskwpa2psk-aes (2),
+		wpapsk-aes (3),
+		wpa3sae-aes (4),
+		wpa3saewpa2psk-aes (5),
+		wpa2psk-tkipaes (6),
+		wpapskwpa2psk-tkipaes (7),
+		wpapsk-tkipaes (8),
+		wpapsk-tkip (9),
+		wpa2psk-tkip (10),
+		wpapskwpa2psk-tkip (11),
+		auto-wep (12),
+		open-wep (13),
+		shared-wep (14),
+		wpa2-aes (15),
+		wpawpa2-tkipaes (16),
+		wpa-aes (17),
+		wpa3-aes (18),
+		owe-aes (19) "
+    ::= { essEntry 5 }
+
+ess8021xRadiusIPaddress OBJECT-TYPE
+    SYNTAX      IpAddress
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+            "Radius Server IP address."
+    ::= { essEntry 7 }
+
+ess8021xRadiusPort OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+            "Raidus Server Port."
+    ::= { essEntry 9 }
+
+essChannelInfo OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+            "2.4G : 1 ~ 13
+             5G : 36,40,44,48,149,153,157,161"
+    ::= { essEntry 10 }
+
+--
+-- routerSystem
+--
+
+LanMac OBJECT-TYPE
+    SYNTAX  PhysAddress
+    MAX-ACCESS  read-only
+    STATUS  current
+    DESCRIPTION
+            "LAN MAC addresss."
+    ::= { routerSystem 1 }
+
+WanMac OBJECT-TYPE
+    SYNTAX  PhysAddress
+    MAX-ACCESS  read-write
+    STATUS  current
+    DESCRIPTION
+            "WAN MAC address."
+    ::= { routerSystem 2 }
+
+PrimaryDNS OBJECT-TYPE
+    SYNTAX  IpAddress
+    MAX-ACCESS  read-write
+    STATUS  current
+    DESCRIPTION
+            "System primary DNS address."
+    ::= { routerSystem 3 }
+
+SecondayDNS OBJECT-TYPE
+    SYNTAX  IpAddress
+    MAX-ACCESS  read-write
+    STATUS  current
+    DESCRIPTION
+            "System secondary DNS address."
+    ::= { routerSystem 4 }
+
+RemoteAccessPort  OBJECT-TYPE
+    SYNTAX      Integer32 {
+		disable (0)
+        }
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+            "(0)disable or (1~65535) Remote access Port."
+    ::= { routerSystem 5 }
+
+
+UpgradeStart  OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+            "0 ~ 65535 seconds
+            (0)immediately upgrade
+            (65535)resting phase upgrade
+             *resting phase : internet packet is no longer 
+              on ths system status."
+    ::= { routerSystem 6 }
+
+Reboot  OBJECT-TYPE
+    SYNTAX      Integer32
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION
+            "reboot the system."
+    ::= { routerSystem 7 }
+
+-- definition of traps.
+
+
+rebootOk NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION "successfuly reboot."
+    ::= { routerTraps 1 }
+
+forceRebootOk NOTIFICATION-TYPE
+    STATUS  current
+    DESCRIPTION "force reboot"
+    ::= { routerTraps 2 }
+
+wanlinkUp NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION "wan port is up"
+    ::= { routerTraps 3 }
+
+wanlinkDown NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION "wan port is down"
+    ::= { routerTraps 4 } 
+
+internetConn NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION "successfully connected"
+    ::= { routerTraps 5 }
+
+internetDiscon NOTIFICATION-TYPE
+    STATUS current
+    DESCRIPTION "internet disconnected"
+    ::= { routerTraps 6 } 
+END

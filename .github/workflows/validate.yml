@@ -1,0 +1,13 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Home Assistant Core Integration Quality Scale
+        uses: home-assistant/actions/helpers/validate-manifest@main
