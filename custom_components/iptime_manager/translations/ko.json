@@ -1,0 +1,50 @@
+{
+  "config": {
+    "error": {
+      "cannot_connect": "공유기에 접속할 수 없습니다. 주소를 확인해주세요.",
+      "invalid_auth": "아이디 또는 비밀번호가 틀렸습니다.",
+      "no_devices_found": "추적할 수 있는 기기를 찾지 못했습니다.",
+      "unknown": "알 수 없는 오류가 발생했습니다."
+    },
+    "step": {
+      "user": {
+        "title": "ipTIME Manager 연결",
+        "data": {
+          "url": "공유기 주소 (예: http://192.168.0.1:8888)",
+          "id": "아이디",
+          "password": "비밀번호",
+          "consider_home": "재접속 대기 시간 (초)"
+        }
+      },
+      "select_devices": {
+        "title": "추적할 기기 선택",
+        "data": {
+          "targets": "재실 감지 대상 기기 선택"
+        }
+      },
+      "name_devices": {
+        "title": "기기 이름 설정 ({mac_address})",
+        "data": {
+          "name": "이름"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "설정 변경",
+        "data": {
+          "targets": "재실 감지 대상 기기 선택",
+          "consider_home": "재접속 대기 시간 (초)"
+        }
+      },
+      "name_new_devices": {
+        "title": "새 기기 이름 설정 ({mac_address})",
+        "data": {
+          "name": "이름"
+        }
+      }
+    }
+  }
+}

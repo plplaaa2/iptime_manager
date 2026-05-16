@@ -1,0 +1,22 @@
+{
+    "domain": "iptime_manager",
+    "name": "ipTIME Manager",
+    "documentation": "https://github.com/plplaaa2/iptime_manager",
+    "issue_tracker": "https://github.com/plplaaa2/iptime_manager/issues",
+    "codeowners": [
+        "@plplaaa2"
+    ],
+    "requirements": [],
+    "dependencies": [],
+    "iot_class": "local_polling",
+    "version": "1.0.0",
+    "config_flow": true,
+    "ssdp": [
+        {
+            "manufacturer": "EFM Networks"
+        },
+        {
+            "deviceType": "urn:schemas-upnp-org:device:InternetGatewayDevice:1"
+        }
+    ]
+}

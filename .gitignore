@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.vscode/
+.idea/
+.venv/
+env/
+venv/
+ENV/
+*.log
+
+# 개발 내부 관리 파일 제외 (깃허브 업로드 방지)
+**/caution.jsonl
+**/changelog.jsonl
+**/web_api.md
