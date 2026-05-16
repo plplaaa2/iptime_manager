@@ -26,7 +26,6 @@ The most powerful and modern Home Assistant integration for EFM ipTIME routers. 
 
 ### 👥 High-Performance Presence Detection (Device Tracker)
 * **Zero-Loss Target Persistence Architecture**: Resolves data loss issues where previously discovered devices were destroyed when selecting zero targets. Even if you deselect all targets in the config flow, your custom-named device mapping (`devices`) is **fully preserved** inside the config entry.
-* **Beautified MAC Visuals**: Formats MAC addresses into standard uppercase notation with colons (`00:11:22:33:44:55`) instead of raw lowercase strings, making device identification effortless.
 * **Standardized i18n Translation Support**: Completely decoupled localization assets into native `en.json` and `ko.json` resources for flawless internationalization.
 
 ### 🔒 AX-Series Security & Wireless Management
