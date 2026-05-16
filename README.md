@@ -3,7 +3,7 @@
 [🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.4.0-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.0.0-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 The most powerful and modern Home Assistant integration for EFM ipTIME routers. Providing seamless support from the latest beta UI models to AX-series routers, it has transitioned completely to a high-performance **JSON-RPC (Web API) architecture**, delivering comprehensive monitoring and robust system controls without requiring any complex SNMP configuration.
@@ -26,7 +26,6 @@ The most powerful and modern Home Assistant integration for EFM ipTIME routers. 
 
 ### 👥 High-Performance Presence Detection (Device Tracker)
 * **Zero-Loss Target Persistence Architecture**: Resolves data loss issues where previously discovered devices were destroyed when selecting zero targets. Even if you deselect all targets in the config flow, your custom-named device mapping (`devices`) is **fully preserved** inside the config entry.
-* **Beautified MAC Visuals**: Formats MAC addresses into standard uppercase notation with colons (`00:11:22:33:44:55`) instead of raw lowercase strings, making device identification effortless.
 * **Standardized i18n Translation Support**: Completely decoupled localization assets into native `en.json` and `ko.json` resources for flawless internationalization.
 
 ### 🔒 AX-Series Security & Wireless Management
