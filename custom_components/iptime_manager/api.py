@@ -484,8 +484,8 @@ class IPTimeAPI:
             # 2. 네트워크 인터페이스 정보 수집 (이름/상태: ipTIME MIB, 트래픽: 표준 MIB-II)
             interfaces = {}
             # 2-1. 이름 및 상태 수집 (ipTIME 전용 MIB)
-            target_if_prefix = (1, 3, 6, 1, 4, 1, 12874, 1, 2, 2, 1)
-            current_oid = ObjectType(ObjectIdentity(".1.3.6.1.4.1.12874.1.2.2.1"))
+            target_if_prefix = (1, 3, 6, 1, 4, 1, 12874, 1, 2, 2) # 테이블 레벨에서 시작
+            current_oid = ObjectType(ObjectIdentity(".1.3.6.1.4.1.12874.1.2.2"))
             prefix_len_if = len(target_if_prefix)
             loop_count = 0
             while loop_count < 100:
@@ -500,11 +500,23 @@ class IPTimeAPI:
                 if errIndication or errStatus or not varBindTable: break
                 varBind = varBindTable[0][0]
                 oid_obj = varBind[0]
-                if oid_obj.asTuple()[:prefix_len_if] != target_if_prefix: break
+                val = varBind[1]
+                
+                # 진단용: 처음 몇 개의 데이터는 무조건 출력
+                if loop_count <= 5:
+                    _LOGGER.warning(f"인터페이스 수집 진단 (Loop {loop_count}): OID={oid_obj}, Val={val.prettyPrint()}")
+
+                if oid_obj.asTuple()[:prefix_len_if] != target_if_prefix: 
+                    _LOGGER.warning(f"인터페이스 수집 중단: Prefix 불일치 (OID: {oid_obj})")
+                    break
                 parts = oid_obj.asTuple()
-                if len(parts) >= prefix_len_if + 2:
+                if len(parts) >= prefix_len_if + 3: # Entry(1) + Col + Index 구조 확인
                     try:
-                        col, idx = parts[prefix_len_if], parts[prefix_len_if + 1]
+                        # Entry(1)이 포함된 경우와 아닌 경우 모두 대응
+                        if parts[prefix_len_if] == 1:
+                            col, idx = parts[prefix_len_if + 1], parts[prefix_len_if + 2]
+                        else:
+                            col, idx = parts[prefix_len_if], parts[prefix_len_if + 1]
                         if idx not in interfaces: interfaces[idx] = {"name": "", "status": 0}
                         val = varBind[1]
                         if col == 2: 
@@ -530,7 +542,20 @@ class IPTimeAPI:
                 final_interfaces[iface_name] = {"status": v["status"], "mode": v.get("mode", 0)}
             
             self.snmp_result["interfaces"] = final_interfaces
-            _LOGGER.info(f"ipTIME 네트워크 포트 및 트래픽 수집 완료: {len(final_interfaces)}개 포트")
+            _LOGGER.info(f"ipTIME 네트워크 포트 수집 완료: {len(final_interfaces)}개 포트")
+
+            # 2-3. 추가 시스템 정보 (WAN 상태 등 스칼라 값)
+            try:
+                # WanStatus (.1.5.5.0) 직접 조회
+                iterator = await asyncio.wait_for(
+                    getCmd(self._snmp_engine, auth_data, transport, ContextData(), ObjectType(ObjectIdentity(".1.3.6.1.4.1.12874.1.5.5.0"))),
+                    timeout=2
+                )
+                err, _, _, vbs = iterator
+                if not err and vbs:
+                    self.snmp_result["wan_status_raw"] = int(vbs[0][1])
+                    _LOGGER.warning(f"WAN 상태 직접 조회 결과 (.5.5.0): {self.snmp_result['wan_status_raw']}")
+            except Exception: pass
             
             # 3. 무선 네트워크(WIFI) 정보 수집 (테이블 워킹 방식으로 통합 수집)
             wifi_list = {}
@@ -559,9 +584,14 @@ class IPTimeAPI:
                             wifi_list[idx] = {"ssid": "", "channel": 0, "mode": 0, "security": 0, "broadcast": 1, "protocol": 0, "enable": 1}
                         
                         val = varBind[1]
-                        _LOGGER.warning(f"WiFi 상세 데이터 감지: Index {idx}, Col {col} -> {val.prettyPrint()}")
+                        val_str = val.prettyPrint() if val is not None else ""
+                        _LOGGER.warning(f"WiFi 상세 데이터 감지: Index {idx}, Col {col} -> {val_str}")
                         
-                        if col == 2: wifi_list[idx]["ssid"] = val.prettyPrint().strip().replace('"', '')
+                        if not val_str or val_str == "":
+                            current_oid = ObjectType(oid_obj)
+                            continue
+
+                        if col == 2: wifi_list[idx]["ssid"] = val_str.strip().replace('"', '')
                         elif col == 3: wifi_list[idx]["broadcast"] = int(val)
                         elif col == 4: wifi_list[idx]["mode"] = int(val)
                         elif col == 5: wifi_list[idx]["security"] = int(val)
@@ -575,7 +605,27 @@ class IPTimeAPI:
                 
                 current_oid = ObjectType(oid_obj)
 
-            self.snmp_result["wifi"] = wifi_list
+            # 유효한 SSID만 필터링 (이름이 없거나 비정상적인 데이터 제외)
+            filtered_wifi = {
+                idx: info for idx, info in wifi_list.items() 
+                if info.get("ssid") and len(info["ssid"].strip()) > 0
+            }
+            self.snmp_result["wifi"] = filtered_wifi
+            
+            # 3-2. 무선 스칼라 정보 수집 (On/Off 상태 찾기용)
+            try:
+                target_wl_scalar = (1, 3, 6, 1, 4, 1, 12874, 1, 4, 1)
+                current_oid = ObjectType(ObjectIdentity(".1.3.6.1.4.1.12874.1.4.1"))
+                for _ in range(10):
+                    iterator = await asyncio.wait_for(nextCmd(self._snmp_engine, auth_data, transport, ContextData(), current_oid), timeout=2)
+                    err, _, _, vbs = iterator
+                    if err or not vbs: break
+                    oid_obj = vbs[0][0]
+                    if oid_obj.asTuple()[:len(target_wl_scalar)] != target_wl_scalar: break
+                    _LOGGER.warning(f"무선 스칼라 데이터 감지 (.4.1): OID={oid_obj}, Val={vbs[0][1].prettyPrint()}")
+                    current_oid = ObjectType(oid_obj)
+            except Exception: pass
+
             if not wifi_list:
                 _LOGGER.info("ipTIME 무선 네트워크 정보를 찾지 못했습니다. (WiFi 비활성화 또는 지원되지 않는 모델)")
             else:
