@@ -524,29 +524,7 @@ class IPTimeAPI:
                 current_oid = ObjectType(oid_obj)
 
             # 2-2. 트래픽 정보 수집 (ipTIME MIB에 정의되지 않아 생략)
-            # ipTIME MIB 전용 모드이므로 표준 MIB-II 호출을 수행하지 않습니다.
             pass
-
-            # 최종 결과 구성 (유효한 데이터만 필터링)
-            final_interfaces = {}
-            valid_ssids = [info["ssid"] for info in filtered_wifi.values()]
-            
-            for idx, v in interfaces.items():
-                name = v["name"]
-                # 이름이 없으면 'Port {idx}'로 명명하여 유선 포트 유실 방지
-                if not name: 
-                    name = f"Port {idx}"
-                
-                # 유효한 SSID가 아니면서 'Port', 'LAN', 'WAN' 등이 포함된 것들은 일단 모두 포함
-                # (무조건적인 'LAN/WAN' 포함 대신, 유령 SSID만 골라내는 방식으로 선회)
-                if name in valid_ssids or "Port" in name or "LAN" in name or "WAN" in name:
-                    final_interfaces[name] = {"status": v["status"], "mode": v.get("mode", 0)}
-                else:
-                    # 그 외의 이름들도 일단 'Port'를 붙여서라도 수집 (안전성 최우선)
-                    final_interfaces[name] = {"status": v["status"], "mode": v.get("mode", 0)}
-            
-            self.snmp_result["interfaces"] = final_interfaces
-            _LOGGER.info(f"ipTIME 네트워크 포트 수집 완료: {len(final_interfaces)}개 포트")
 
             # 2-3. 추가 시스템 정보 (WAN 상태 등 스칼라 값)
             try:
@@ -615,6 +593,24 @@ class IPTimeAPI:
                 if info.get("ssid") and len(info["ssid"].strip()) > 0
             }
             self.snmp_result["wifi"] = filtered_wifi
+            
+            # 3-1. 최종 인터페이스 결과 구성 (WiFi 수집 이후에 수행하여 filtered_wifi 참조 가능하게 함)
+            final_interfaces = {}
+            valid_ssids = [info["ssid"] for info in filtered_wifi.values()]
+            
+            for idx, v in interfaces.items():
+                name = v["name"]
+                if not name: 
+                    name = f"Port {idx}"
+                
+                # 유효한 SSID 목록에 있거나 물리 포트인 경우 포함
+                if name in valid_ssids or "Port" in name or "LAN" in name or "WAN" in name:
+                    final_interfaces[name] = {"status": v["status"], "mode": v.get("mode", 0)}
+                else:
+                    final_interfaces[name] = {"status": v["status"], "mode": v.get("mode", 0)}
+            
+            self.snmp_result["interfaces"] = final_interfaces
+            _LOGGER.info(f"ipTIME 네트워크 및 무선 수집 완료: {len(final_interfaces)}개 인터페이스")
             
             # 3-2. 무선 스칼라 정보 수집 (On/Off 상태 찾기용)
             try:
