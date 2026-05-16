@@ -23,7 +23,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    await hass.config_entries.async_forward_entry_setups(entry, ["device_tracker", "sensor", "button", "binary_sensor", "switch"])
+    await hass.config_entries.async_forward_entry_setups(entry, ["device_tracker", "sensor", "button", "binary_sensor"])
     _LOGGER.info("ipTIME 엔티티 등록 완료")
     
     # 옵션 변경 시 실행될 리스너 등록

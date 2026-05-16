@@ -483,9 +483,9 @@ class IPTimeAPI:
 
             # 2. 네트워크 인터페이스 정보 수집 (이름/상태: ipTIME MIB, 트래픽: 표준 MIB-II)
             interfaces = {}
-            # 2-1. 이름 및 상태 수집 (ipTIME 전용 MIB)
-            target_if_prefix = (1, 3, 6, 1, 4, 1, 12874, 1, 2, 2) # 테이블 레벨에서 시작
-            current_oid = ObjectType(ObjectIdentity(".1.3.6.1.4.1.12874.1.2.2"))
+            # 2-1. 이름 및 상태 수집 (안정적인 기존 OID로 복구)
+            target_if_prefix = (1, 3, 6, 1, 4, 1, 12874, 1, 2, 2, 1)
+            current_oid = ObjectType(ObjectIdentity(".1.3.6.1.4.1.12874.1.2.2.1"))
             prefix_len_if = len(target_if_prefix)
             loop_count = 0
             while loop_count < 100:
@@ -502,31 +502,23 @@ class IPTimeAPI:
                 oid_obj = varBind[0]
                 val = varBind[1]
                 
-                # 진단용: 처음 몇 개의 데이터는 무조건 출력
                 if loop_count <= 5:
-                    _LOGGER.warning(f"인터페이스 수집 진단 (Loop {loop_count}): OID={oid_obj}, Val={val.prettyPrint()}")
+                    _LOGGER.debug(f"인터페이스 수집 진단 (Loop {loop_count}): OID={oid_obj}, Val={val.prettyPrint()}")
 
                 if oid_obj.asTuple()[:prefix_len_if] != target_if_prefix: 
-                    _LOGGER.warning(f"인터페이스 수집 중단: Prefix 불일치 (OID: {oid_obj})")
                     break
                 parts = oid_obj.asTuple()
-                if len(parts) >= prefix_len_if + 3: # Entry(1) + Col + Index 구조 확인
+                if len(parts) >= prefix_len_if + 2:
                     try:
-                        # Entry(1)이 포함된 경우와 아닌 경우 모두 대응
-                        if parts[prefix_len_if] == 1:
-                            col, idx = parts[prefix_len_if + 1], parts[prefix_len_if + 2]
-                        else:
-                            col, idx = parts[prefix_len_if], parts[prefix_len_if + 1]
+                        col, idx = parts[prefix_len_if], parts[prefix_len_if + 1]
                         if idx not in interfaces: interfaces[idx] = {"name": "", "status": 0}
                         val = varBind[1]
                         if col == 2: 
                             interfaces[idx]["name"] = val.prettyPrint().strip().replace('"', '')
-                            _LOGGER.warning(f"인터페이스 이름 확인: Index {idx} -> '{interfaces[idx]['name']}'")
                         elif col == 3:
                             interfaces[idx]["mode"] = int(val)
                         elif col == 4: 
                             interfaces[idx]["status"] = int(val)
-                            _LOGGER.warning(f"인터페이스 상태 확인: Index {idx} ('{interfaces[idx].get('name')}') -> {val}")
                     except Exception as e:
                         _LOGGER.debug(f"인터페이스 파싱 중 오류: {e}")
                 current_oid = ObjectType(oid_obj)
@@ -535,11 +527,17 @@ class IPTimeAPI:
             # ipTIME MIB 전용 모드이므로 표준 MIB-II 호출을 수행하지 않습니다.
             pass
 
-            # 최종 결과 구성
+            # 최종 결과 구성 (유효한 데이터만 필터링)
             final_interfaces = {}
+            valid_ssids = [info["ssid"] for info in filtered_wifi.values()]
+            
             for idx, v in interfaces.items():
-                iface_name = v["name"] if v["name"] else f"Port {idx}"
-                final_interfaces[iface_name] = {"status": v["status"], "mode": v.get("mode", 0)}
+                name = v["name"]
+                if not name: continue
+                # 삭제된 SSID나 유령 데이터 필터링
+                # 이름에 'LAN' 또는 'WAN'이 있거나, 유효한 SSID 목록에 있는 경우만 포함
+                if "LAN" in name or "WAN" in name or name in valid_ssids:
+                    final_interfaces[name] = {"status": v["status"], "mode": v.get("mode", 0)}
             
             self.snmp_result["interfaces"] = final_interfaces
             _LOGGER.info(f"ipTIME 네트워크 포트 수집 완료: {len(final_interfaces)}개 포트")
@@ -575,27 +573,27 @@ class IPTimeAPI:
                 if errIndication or errStatus or not varBindTable: break
                 varBind = varBindTable[0][0]
                 oid_obj = varBind[0]
-                if oid_obj.asTuple()[:prefix_len_wifi] != target_wifi_prefix: break
+                if oid_obj.asTuple()[:prefix_len_wifi] != target_wifi_prefix: 
+                    _LOGGER.warning(f"WiFi 루프 범위 이탈 감지 (OID: {oid_obj}), 무시하고 계속 진행해봅니다.")
+                    # break 대신 일단 계속 가봅니다 (단, 너무 멀리 가지 않게 prefix_len_wifi - 1 정도는 체크)
+                    if oid_obj.asTuple()[:prefix_len_wifi-1] != target_wifi_prefix[:-1]: break
                 parts = oid_obj.asTuple()
                 if len(parts) >= prefix_len_wifi + 2:
                     try:
                         col, idx = parts[prefix_len_wifi], parts[prefix_len_wifi + 1]
                         if idx not in wifi_list: 
-                            wifi_list[idx] = {"ssid": "", "channel": 0, "mode": 0, "security": 0, "broadcast": 1, "protocol": 0, "enable": 1}
+                            wifi_list[idx] = {"ssid": "", "channel": 0, "mode": 0, "security": 0, "broadcast": 1, "protocol": 0, "enable": 0}
                         
                         val = varBind[1]
                         val_str = val.prettyPrint() if val is not None else ""
-                        _LOGGER.warning(f"WiFi 상세 데이터 감지: Index {idx}, Col {col} -> {val_str}")
                         
-                        if not val_str or val_str == "":
-                            current_oid = ObjectType(oid_obj)
-                            continue
-
-                        if col == 2: wifi_list[idx]["ssid"] = val_str.strip().replace('"', '')
-                        elif col == 3: wifi_list[idx]["broadcast"] = int(val)
+                        if col == 2: 
+                            wifi_list[idx]["ssid"] = val_str.strip().replace('"', '')
+                        elif col == 3: 
+                            wifi_list[idx]["broadcast"] = int(val)
                         elif col == 4: wifi_list[idx]["mode"] = int(val)
                         elif col == 5: wifi_list[idx]["security"] = int(val)
-                        elif col == 7: wifi_list[idx]["radius_ip"] = val.prettyPrint()
+                        elif col == 7: wifi_list[idx]["radius_ip"] = val_str
                         elif col == 8: wifi_list[idx]["auth_mode"] = int(val)
                         elif col == 9: wifi_list[idx]["enable"] = int(val)
                         elif col == 10: wifi_list[idx]["channel"] = int(val)
