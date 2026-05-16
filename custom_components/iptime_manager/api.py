@@ -566,7 +566,7 @@ class IPTimeAPI:
                     try:
                         col, idx = parts[prefix_len_wifi], parts[prefix_len_wifi + 1]
                         if idx not in wifi_list: 
-                            wifi_list[idx] = {"ssid": "", "channel": 0, "mode": 0, "security": 0, "broadcast": 1, "protocol": 0, "enable": 0}
+                            wifi_list[idx] = {"ssid": "", "channel": 0, "mode": 0, "security": 0, "broadcast": 1, "protocol": 0, "enable": 1}
                         
                         val = varBind[1]
                         val_str = val.prettyPrint() if val is not None else ""

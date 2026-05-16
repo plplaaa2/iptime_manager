@@ -74,23 +74,24 @@ class IPTimeInterfaceBinarySensor(CoordinatorEntity, BinarySensorEntity):
         ifaces = snmp_data.get("interfaces", {})
         wifi_list = snmp_data.get("wifi", {})
         
-        # 현재 인터페이스가 WiFi SSID인지 확인
+        # 1. WiFi 리스트에서 먼저 검색 (무선 전용 상태)
+        is_wifi = False
         for w_idx, w_info in wifi_list.items():
             if w_info.get("ssid") == self._iface_name:
+                is_wifi = True
                 return w_info.get("enable", 0) == 1
         
-        # 유선 포트의 경우 기존 로직 유지 (0: Down, 1 이상: Up/Speed)
+        # 2. 유선 포트 테이블에서 검색
         info = ifaces.get(self._iface_name)
-        if info is None:
-            _LOGGER.debug(f"인터페이스 매칭 실패: '{self._iface_name}'")
-            return False
+        if info is not None:
+            # LAN/WAN이 아닌데 WiFi 리스트에도 없었다면 꺼진 WiFi로 간주
+            if not is_wifi and "LAN" not in self._iface_name and "WAN" not in self._iface_name:
+                return False
+                
+            status_code = info.get("status", 0)
+            return status_code >= 1
             
-        status_code = info.get("status", 0)
-        # 진단용 로그: 실제 어떤 값이 들어오는지 확인
-        if "WAN" in self._iface_name or status_code > 0:
-            _LOGGER.warning(f"인터페이스 상태 판별: '{self._iface_name}' -> Code: {status_code}, Result: {status_code >= 1}")
-            
-        return status_code >= 1
+        return False
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
