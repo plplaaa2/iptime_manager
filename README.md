@@ -20,7 +20,7 @@ The most powerful and modern Home Assistant integration for EFM ipTIME routers. 
 * **Dynamic Material Design Icons**: Automatically toggles between `mdi:ethernet` and `mdi:ethernet-off` based on connection state, maximizing the visual aesthetics of your Home Assistant dashboard cards.
 
 ### 🛡️ Premium Controls & System Integration
-* **One-Click IPTV Mode Selector**: Adjusts IPTV connection methods (KT/SKB/LGU+ custom ISP port mapping modes) on the fly using a dedicated selector (`select.iptime_iptv_mode`) entity.
+* **One-Click IPTV Mode Selector**: Unleashes full control over IPTV configurations, extending beyond the standard KT mode to support 6 specialized ISP profiles across KT, SK Broadband, LG Uplus, and local cable systems (SCS, Hyundai HCN) via a dedicated select entity (`select.iptime_iptv_mode`).
 * **WireGuard VPN Switch**: Toggles the execution state of your router's built-in WireGuard VPN server via switch controls (`switch.iptime_wireguard_server`).
 * **Auto-Reboot Management**: Offers immediate reboot triggers (`button.iptime_reboot`) and automated reboot toggles (`switch.iptime_auto_reboot`) to keep your router in top-performing condition.
 
@@ -45,6 +45,21 @@ The most powerful and modern Home Assistant integration for EFM ipTIME routers. 
 | **`switch`** | Wi-Fi SSIDs toggles, WireGuard Server toggle, Auto-Reboot toggles, **[8 Security Controls]** Remote Admin/CSRF/ARP Virus, etc. |
 | **`select`** | IPTV Mode Selector (6 options), GeoIP block policy settings |
 | **`button`** | Router immediate trigger (`button.iptime_reboot`) |
+
+---
+
+## 📺 ISP IPTV Settings Guide
+
+While EFM ipTIME routers **officially document and support only KT IPTV settings** in their manual, this integration reverse-engineers the inner Web APIs to unlock **full raw IPTV configurations for all major Korean ISPs and specialized MSO cable systems**.
+
+| Option (HA Select) | Technical Implementation & Target ISP Details |
+| :--- | :--- |
+| **`Disabled`** | Deactivates IPTV routing logic. |
+| **`Private IP (IGMP Proxy) - SKB, LGU+`** | Standard IGMP Proxy routing keeping the set-top box under private IP range, optimized for SK Broadband & LG Uplus. |
+| **`Public IP (LAN Port) - KT`** | Bridges the external WAN interface directly to a designated LAN port, allocating a dedicated Public IP to the set-top box. Highly stable, official KT mode. |
+| **`Public IP (MACVLAN) - KT`** | Advanced MACVLAN virtualization mode for KT set-top box integration. |
+| **`Public IP (LAN Port) - SCS`** | Bridges and tunnels Public IP directly to the designated LAN port for **Seokyeong Cable System (SCS)** and **Hyundai HCN** networks. |
+| **`Private IP (All Ports) - SCS`** | Opens IGMP multicast streams to all LAN ports under private IP ranges for local cable networks (SCS). |
 
 ---
 
