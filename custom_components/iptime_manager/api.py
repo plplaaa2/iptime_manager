@@ -533,10 +533,16 @@ class IPTimeAPI:
             
             for idx, v in interfaces.items():
                 name = v["name"]
-                if not name: continue
-                # 삭제된 SSID나 유령 데이터 필터링
-                # 이름에 'LAN' 또는 'WAN'이 있거나, 유효한 SSID 목록에 있는 경우만 포함
-                if "LAN" in name or "WAN" in name or name in valid_ssids:
+                # 이름이 없으면 'Port {idx}'로 명명하여 유선 포트 유실 방지
+                if not name: 
+                    name = f"Port {idx}"
+                
+                # 유효한 SSID가 아니면서 'Port', 'LAN', 'WAN' 등이 포함된 것들은 일단 모두 포함
+                # (무조건적인 'LAN/WAN' 포함 대신, 유령 SSID만 골라내는 방식으로 선회)
+                if name in valid_ssids or "Port" in name or "LAN" in name or "WAN" in name:
+                    final_interfaces[name] = {"status": v["status"], "mode": v.get("mode", 0)}
+                else:
+                    # 그 외의 이름들도 일단 'Port'를 붙여서라도 수집 (안전성 최우선)
                     final_interfaces[name] = {"status": v["status"], "mode": v.get("mode", 0)}
             
             self.snmp_result["interfaces"] = final_interfaces
