@@ -318,18 +318,7 @@ class IPTimeAPI:
             if wan_heartbeat.get("result") is not None:
                 self.web_result["wan_heartbeat"] = wan_heartbeat["result"]
 
-            # IPTV 설정 정보 수집 (연결될 파일: select.py)
-            iptv_config = await self._async_service_json("iptv/config")
-            if iptv_config.get("result") is not None:
-                iptv_data = iptv_config["result"]
-                if isinstance(iptv_data, dict):
-                    self.web_result["iptv_config"] = iptv_data
-                else:
-                    # 결과 자체가 문자열 "off", "private" 등일 경우 딕셔너리 규격으로 표준 정제 (연결될 파일: select.py)
-                    self.web_result["iptv_config"] = {
-                        "mode": str(iptv_data),
-                        "port": 4  # 기본 지정 포트
-                    }
+
 
             # 나이트 LED 설정 정보 수집 (연결될 파일: select.py)
             led_config = await self._async_service_json("led/config")
@@ -795,32 +784,7 @@ class IPTimeAPI:
             _LOGGER.debug(f"Web CGI 재부팅 시도 실패: {err}")
             return False
 
-    async def async_set_web_iptv_config(self, mode: str, port: int | None = None) -> bool:
-        """IPTV 설정을 변경한다. (연결될 파일: select.py)"""
-        # 1단계: IPTV 모드 설정 변경 (iptv/mode API 호출, commit: True 동반 전송)
-        try:
-            response_mode = await self._async_service_json("iptv/mode", {"mode": mode, "commit": True})
-            if response_mode.get("error"):
-                _LOGGER.warning(f"IPTV 모드 변경 중 API 오류: {response_mode.get('error')}")
-                return False
-            _LOGGER.info(f"IPTV 모드 변경 완료 (iptv/mode): {mode}")
-        except Exception as err:
-            _LOGGER.warning(f"IPTV 모드 변경 실패 (iptv/mode): {err}")
-            return False
 
-        # 2단계: 지정 LAN 포트 설정 변경 (iptv/public/port API 호출, commit: True 동반 전송)
-        if mode == "public" and port is not None:
-            try:
-                response_port = await self._async_service_json("iptv/public/port", {"port": int(port), "commit": True})
-                if response_port.get("error"):
-                    _LOGGER.warning(f"IPTV 공인 IP 지정 포트 변경 중 API 오류: {response_port.get('error')}")
-                    return False
-                _LOGGER.info(f"IPTV 공인 IP 지정 포트 변경 완료 (iptv/public/port): {port}")
-            except Exception as err:
-                _LOGGER.warning(f"IPTV 공인 IP 지정 포트 변경 실패 (iptv/public/port): {err}")
-                return False
-
-        return True
 
     async def async_set_web_wg_server_run(self, run: bool) -> bool:
         """WireGuard 서버 실행 상태를 변경한다. (연결될 파일: switch.py)"""
