@@ -754,19 +754,32 @@ class IPTimeAPI:
     async def async_set_web_wg_server_run(self, run: bool) -> bool:
         """WireGuard 서버 실행 상태를 변경한다. (연결될 파일: switch.py)"""
         wg_config = self.web_result.get("wg_server", {})
-        params = {
-            "run": run,
-            "ip": wg_config.get("ip", "10.0.21.1"),
-            "subnet": wg_config.get("subnet", "24"),
-            "port": wg_config.get("port", 53344),
-            "nat": wg_config.get("nat", True),
-        }
+        if not isinstance(wg_config, dict):
+            wg_config = {}
+
+        # 기존 설정을 그대로 보존하면서 run, enable, commit 값을 동적 덮어쓰기 (예외 방지)
+        params = wg_config.copy()
+        params["run"] = bool(run)
+        params["enable"] = bool(run)
+        params["commit"] = True
+
+        # 필수 파라미터 기본값 방어
+        if "ip" not in params:
+            params["ip"] = "10.0.21.1"
+        if "subnet" not in params:
+            params["subnet"] = "24"
+        if "port" not in params:
+            params["port"] = 53344
+        if "nat" not in params:
+            params["nat"] = True
 
         try:
             response = await self._async_service_json("wg/server/set", params)
             if not response.get("error"):
                 _LOGGER.info(f"WireGuard 서버 실행 상태 변경 완료: {run}")
                 return True
+            else:
+                _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 중 API 오류: {response.get('error')}")
         except Exception as err:
             _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 실패: {err}")
         return False
