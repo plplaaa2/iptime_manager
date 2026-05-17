@@ -66,7 +66,7 @@ While EFM ipTIME routers **officially document and support only KT IPTV settings
 
 ### 1. Automatic Installation (Recommended)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=plplaaa2&repository=https%3A%2F%2Fgithub.com%2Fplplaaa2%2Fiptime_manager&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=plplaaa2&repository=iptime_manager)
 
 Click the button above to add this repository directly inside HACS, install **ipTIME Manager**, and restart your Home Assistant instance.
 
