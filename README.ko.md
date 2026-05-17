@@ -3,7 +3,7 @@
 [🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.4.0-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.0.0-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 ipTIME 공유기를 위한 가장 강력하고 현대적인 Home Assistant 통합 구성요소입니다. 최신 플러터(Flutter) 기반 베타 UI 모델부터 **3세대 IUX(반응형 모바일 웹 UI) 적용 공유기(AX 시리즈 등)**까지 폭넓게 지원하며, 초고성능 **JSON-RPC (Web API) 전용 구조**로 완전히 전환되어 복잡한 SNMP 설정 없이 완벽한 실시간 모니터링과 시스템 제어를 선사합니다.
