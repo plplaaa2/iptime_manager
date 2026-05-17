@@ -54,6 +54,9 @@ class IPTimeAPI:
         self.result: Dict[str, Any] = {}
         self.web_result: Dict[str, Any] = {}
         self._latest_firmware_version: Any = None
+        self._last_valid_qos_up = "80Mbps"
+        self._last_valid_qos_down = "80Mbps"
+        self._last_valid_qos_smart = True
         self._url = url if "http" in url else "http://" + url
         if self._url.endswith("/"):
             self._url = self._url[:-1]
@@ -296,13 +299,20 @@ class IPTimeAPI:
             if upnp_config.get("result") is not None:
                 self.web_result["upnp_config"] = upnp_config["result"]
 
+            # NAT 고급 및 트래픽 설정 수집 (포트포워드, UPnP 릴레이, QoS 트래픽 차등화)
+            portforward_config = await self._async_service_json("portforward/config")
+            if portforward_config.get("result") is not None:
+                self.web_result["portforward_config"] = portforward_config["result"]
+
+            upnp_relay = await self._async_service_json("upnp/relay")
+            if upnp_relay.get("result") is not None:
+                self.web_result["upnp_relay"] = upnp_relay.get("result")
+
+
+
             reboot_timer = await self._async_service_json("reboot/timer")
             if reboot_timer.get("result") is not None:
                 self.web_result["reboot_timer"] = reboot_timer["result"]
-
-            nat_config = await self._async_service_json("nat/config")
-            if nat_config.get("result") is not None:
-                self.web_result["nat_config"] = nat_config["result"]
 
             wan_heartbeat = await self._async_service_json("wan/heartbeat")
             if wan_heartbeat.get("result") is not None:
@@ -483,13 +493,6 @@ class IPTimeAPI:
             "days": days
         }
         response = await self._async_service_json("reboot/timer", params)
-        return not response.get("error")
-
-    async def async_set_web_nat_config(self, enable: bool) -> bool:
-        # 인터넷 연결 유지 설정 (연결될 파일: switch.py)
-        if not self._beta_ui:
-            return False
-        response = await self._async_service_json("nat/config", bool(enable))
         return not response.get("error")
 
     async def async_set_web_wan_heartbeat(self, run: bool, interval: int = 3) -> bool:
@@ -844,6 +847,68 @@ class IPTimeAPI:
         except Exception as err:
             _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 실패: {err}")
         return False
+
+    async def async_set_web_portforward_enable(self, enable: bool) -> bool:
+        """포트포워딩 기능의 활성화 상태를 제어한다. (연결될 파일: switch.py)"""
+        # 요약: 포트포워딩의 활성화 여부를 true/false로 제어한다.
+        # 연결 파일: switch.py
+        if not self._beta_ui:
+            return False
+        response = await self._async_service_json("portforward/config", {"enable": bool(enable)})
+        return not response.get("error")
+
+    async def async_set_web_upnp_relay_enable(self, enable: bool) -> bool:
+        """UPnP 포트포워드 릴레이 기능의 활성화 상태를 제어한다. (연결될 파일: switch.py)"""
+        # 요약: UPnP 릴레이 기능을 단일 bool 값으로 제어한다.
+        # 연결 파일: switch.py
+        if not self._beta_ui:
+            return False
+        response = await self._async_service_json("upnp/relay", bool(enable))
+        return not response.get("error")
+
+    async def async_set_web_qos_config(self, enable: bool, speed: int | str | None = None) -> bool:
+        """QoS 트래픽 차등화 서비스의 동작 상태 및 대역폭 속도를 제어한다. (연결될 파일: switch.py, select.py)"""
+        # 요약: QoS 트래픽 차등화 서비스 상태와 대역폭 속도를 제어한다.
+        # 연결 파일: switch.py, select.py
+        if not self._beta_ui:
+            return False
+
+        qos_config = self.web_result.get("qos_config", {})
+        if not isinstance(qos_config, dict):
+            qos_config = {}
+
+        if speed is not None:
+            speed_str = str(speed).strip()
+            match = re.search(r"(\d+)", speed_str)
+            if match:
+                val = match.group(1)
+                speed_formatted = f"{val}Mbps"
+            else:
+                speed_formatted = "80Mbps"
+            self._last_valid_qos_up = speed_formatted
+            self._last_valid_qos_down = speed_formatted
+        else:
+            up_val = qos_config.get("up")
+            if up_val:
+                self._last_valid_qos_up = str(up_val).replace(" ", "")
+            down_val = qos_config.get("down")
+            if down_val:
+                self._last_valid_qos_down = str(down_val).replace(" ", "")
+
+        smart_val = qos_config.get("smart")
+        if smart_val is not None:
+            self._last_valid_qos_smart = bool(smart_val)
+
+        params = {
+            "mode": bool(enable),
+            "smart": self._last_valid_qos_smart,
+            "up": self._last_valid_qos_up,
+            "down": self._last_valid_qos_down
+        }
+
+        _LOGGER.info(f"QoS 트래픽 차등화 설정 전송: {params}")
+        response = await self._async_service_json("qos/config", params)
+        return not response.get("error")
 
 
 

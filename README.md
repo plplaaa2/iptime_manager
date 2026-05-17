@@ -3,35 +3,42 @@
 [🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.0.0-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.4.0-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
-The most powerful and modern Home Assistant integration for EFM ipTIME routers. Providing seamless support from the latest beta UI models to AX-series routers, it has transitioned completely to a high-performance **JSON-RPC (Web API) architecture**, delivering comprehensive monitoring and robust system controls without requiring any complex SNMP configuration.
+The most powerful and modern Home Assistant integration for EFM ipTIME routers. Supporting models from the latest Flutter-based Beta UI to AX-series routers, it has transitioned completely to a high-performance **JSON-RPC (Web API) architecture**, delivering flawless real-time monitoring and robust system control without requiring any complex SNMP configuration.
 
 ---
 
-## ✨ Features
+## ✨ Features & Technical Details
 
-### 💻 Real-Time System Information Monitoring
-* **Core System Telemetry**: Safely and reliably delivers primary diagnostic sensors (`sensor`) such as router Uptime, Model name, Firmware version (with real-time updates detection), WAN IP & MAC address, Primary/Secondary DNS, and cumulative GeoIP Blocked Count.
+### ⚡ Smart Caching Engine
+* **Over 70% Reduction in Network & CPU Overhead**: Introduces a high-performance, intelligent memory caching layer to eliminate heavy router processor usage.
+* **Dynamic Lifecycle Management**: Static data (such as the router model name) is fetched once and cached permanently. Semi-static configurations (DNS, DoS, UPnP, Reboot schedules, WireGuard states) are cached in memory for 5 minutes to 1 hour.
+* **Instant Mutation Invalidation**: When you toggle a switch or modify a selection in Home Assistant, the integration immediately invalidates the corresponding memory cache, pushes the change, and triggers a forced background update. This reduces the previous 14+ JSON-RPC calls per 5-second interval down to 4–5 core queries.
 
-### 🌐 Network Ports Status & Visual Enhancements
-* **WAN & LAN 1-4 Port Sensors**: Monitors real-time physical link connectivity via binary sensors (`binary_sensor`) utilizing the native `connectivity` device class.
-* **Dynamic Material Design Icons**: Automatically toggles between `mdi:ethernet` and `mdi:ethernet-off` based on connection state, maximizing the visual aesthetics of your Home Assistant dashboard cards.
+### 🚨 Real-Time WAN Cable & Public IP Change Tracking
+* **Physical Cable & Lease Monitoring**: Actively monitors physical Ethernet link state on the WAN port and the public IP lease status.
+* **Persistent Notification System**: If the WAN cable is unplugged, or the public IP changes, the integration immediately generates a persistent alert (`persistent_notification`) on your Home Assistant dashboard, displaying both the **previous IP** and the **newly assigned IP** so you are never left in the dark.
 
-### 🛡️ Premium Controls & System Integration
-* **One-Click IPTV Mode Selector**: Unleashes full control over IPTV configurations, extending beyond the standard KT mode to support 6 specialized ISP profiles across KT, SK Broadband, LG Uplus, and local cable systems (SCS, Hyundai HCN) via a dedicated select entity (`select.iptime_iptv_mode`).
-* **WireGuard VPN Switch**: Toggles the execution state of your router's built-in WireGuard VPN server via switch controls (`switch.iptime_wireguard_server`).
-* **Auto-Reboot Management**: Offers immediate reboot triggers (`button.iptime_reboot`) and automated reboot toggles (`switch.iptime_auto_reboot`) to keep your router in top-performing condition.
+### 📡 SSID-Level Wi-Fi Switches & Band Separation
+* **Unified Entities & Optimization**: Replaced redundant, slow-updating Wi-Fi binary sensors with unified, high-performance wireless switches (`switch`).
+* **Granular SSID Control**: A single switch entity manages and displays the active state, frequency band, SSID name, security method, and visibility (hidden/visible). Toggles operate on a per-SSID (BSS) level rather than the entire band, preventing router wireless chipset restarts and keeping other IoT devices connected seamlessly.
 
-### 👥 High-Performance Presence Detection (Device Tracker)
-* **Zero-Loss Target Persistence Architecture**: Resolves data loss issues where previously discovered devices were destroyed when selecting zero targets. Even if you deselect all targets in the config flow, your custom-named device mapping (`devices`) is **fully preserved** inside the config entry.
-* **Standardized i18n Translation Support**: Completely decoupled localization assets into native `en.json` and `ko.json` resources for flawless internationalization.
+### 🔒 AX-Series Security & Smart GeoIP Lockout Safeguard
+* **8 Dedicated Security Switches**: Reverse-engineered AX-series security APIs to control Remote Admin port access, CSRF security block, ARP Virus Shield, Inbound Ping block, and more.
+* **Lockout Disaster Prevention**: Includes GeoIP total blocked count (`sensor`) and policy selection (`select`). When switching to Country Allow mode, if the allow list is empty or missing, the integration **automatically force-injects the South Korea ('kr') code**, preventing catastrophic lockouts where you accidentally block your own administrative access.
 
-### 🔒 AX-Series Security & Wireless Management
-* **8 Security Switches**: Reverse-engineered AX-series security APIs to provide individual toggle entities for Remote Management, CSRF Protection, ARP Virus Shield, Inbound Ping responses, and more.
-* **GeoIP Security Policies**: Includes active GeoIP block settings and total block counts monitoring.
-* **SSID BSSID-Level Wireless Controls**: Separates 2.4GHz, 5GHz, and 6GHz Wi-Fi toggles so that toggling an individual band does not interrupt the entire wireless chipset.
+### 🔌 Advanced NAT Settings (Port Forwarding & UPnP Relay)
+* **Dashboard Toggle Switches**: Offers switch entities (`switch`) to toggle the router's Port Forwarding and UPnP Relay features directly from your dashboard cards, making manual configuration changes extremely easy.
+
+### 🔑 Robust WireGuard VPN Server Control
+* **One-Click Execution Switch**: Easily toggle the execution state of your router's built-in WireGuard VPN server (`switch.wireguard_server`).
+* **Strict Parameter Filtering**: Adheres strictly to the JSON-RPC firmware validation. Read-only and non-standard attributes (e.g., `pubkey`) are thoroughly filtered out, transmitting only the 5 essential schema fields (`run`, `ip`, `subnet`, `port`, `nat`) to avoid API validation errors.
+
+### 🌙 Night LED & Auto Reboot Custom Configuration Retention
+* **System Settings Selectors**: Toggles Night LED modes (Disabled, Scheduled, Always Off) via `select.sysmisc_night_led` and automated reboot days via `select.auto_reboot_day`.
+* **Memory Retention Mechanism**: When switching LED modes back to Scheduled or toggling the Auto Reboot switches, the integration remembers your custom night-LED hours and early morning reboot times (`Hour`/`Minute`) inside instance variables, preventing the router from reverting them to default values.
 
 ---
 
@@ -39,26 +46,24 @@ The most powerful and modern Home Assistant integration for EFM ipTIME routers. 
 
 | Platform | Features & Entities |
 | :--- | :--- |
-| **`sensor`** | Router Uptime, Model Name, Firmware Version, WAN IP/MAC, GeoIP Blocked Count, etc. |
-| **`binary_sensor`** | WAN & LAN 1-4 Link Status (`connectivity`), Wi-Fi band active states |
-| **`switch`** | Wi-Fi SSIDs toggles, WireGuard Server toggle, Auto-Reboot toggles, **[8 Security Controls]** Remote Admin/CSRF/ARP Virus, etc. |
-| **`select`** | IPTV Mode Selector (6 options), GeoIP block policy settings |
-| **`button`** | Router immediate trigger (`button.iptime_reboot`) |
+| **`sensor`** | Router Uptime, Model Name, Firmware Version (with latest update comparison), WAN IP & MAC Address, Primary/Secondary DNS, GeoIP Cumulative Blocked Count, etc. |
+| **`binary_sensor`** | WAN & LAN 1-4 Physical Link Status (`connectivity` device class supported) |
+| **`switch`** | SSID-level Wi-Fi toggles, WireGuard Server toggle, Auto-Reboot toggle, Port Forwarding toggle, UPnP Relay toggle, **[8 Security Controls]** Remote Admin/CSRF/ARP Virus/Ping Block, etc. |
+| **`select`** | Night LED Mode, Auto-Reboot Day, GeoIP Policy Settings |
+| **`button`** | Router Safe Reboot Trigger (`button.reboot`) |
 
 ---
 
-## 📺 ISP IPTV Settings Guide
+## 🛡️ Safety-First Integration Architecture
 
-While EFM ipTIME routers **officially document and support only KT IPTV settings** in their manual, this integration reverse-engineers the inner Web APIs to unlock **full raw IPTV configurations for all major Korean ISPs and specialized MSO cable systems**.
+To ensure maximum reliability of your smart home network, we have revised the core integration architecture. 
+Toggling settings that **trigger a physical, hardware-level reboot of the router chipsets—resulting in house-wide network outages and smart home interruptions**—have been **permanently retired from the integration entities and isolated from the codebase**:
 
-| Option (HA Select) | Technical Implementation & Target ISP Details |
-| :--- | :--- |
-| **`Disabled`** | Deactivates IPTV routing logic. |
-| **`Private IP (IGMP Proxy) - SKB, LGU+`** | Standard IGMP Proxy routing keeping the set-top box under private IP range, optimized for SK Broadband & LG Uplus. |
-| **`Public IP (LAN Port) - KT`** | Bridges the external WAN interface directly to a designated LAN port, allocating a dedicated Public IP to the set-top box. Highly stable, official KT mode. |
-| **`Public IP (MACVLAN) - KT`** | Advanced MACVLAN virtualization mode for KT set-top box integration. |
-| **`Public IP (LAN Port) - SCS`** | Bridges and tunnels Public IP directly to the designated LAN port for **Seokyeong Cable System (SCS)** and **Hyundai HCN** networks. |
-| **`Private IP (All Ports) - SCS`** | Opens IGMP multicast streams to all LAN ports under private IP ranges for local cable networks (SCS). |
+1. **IPTV Mode Selector** (`select.iptime_iptv_mode` permanently removed)
+2. **Internet Sharing Switch** (`switch.iptime_keep_connection` permanently removed)
+
+> [!IMPORTANT]
+> These modifications are absolute safety measures taken to prevent smart home lockout and network freezing caused by router hardware design limitations. If you must adjust your IPTV or NAT sharing configuration, please access the router's web admin UI (192.168.0.1) directly and perform the changes manually.
 
 ---
 
@@ -82,11 +87,11 @@ Click the button above to add this repository directly inside HACS, install **ip
 ---
 
 ## ☕ Support Me
-If this project saves your time and helps you manage your smart home, consider supporting development with a warm cup of coffee!
+If this project saves you time and helps you manage your smart home, consider supporting development with a warm cup of coffee!
 
 <a href='https://ko-fi.com/plplaaa2' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://cdn.ko-fi.com/cdn/kofi1.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
 ---
 
 ## 📄 License
-This project is open-source and licensed under the MIT License.
+This project is open-source software licensed under the **MIT License**. Built for inter-operability via reverse-engineered local HTTP/JSON-RPC protocols, it contains legal exemptions and liability limitations detailed in the LICENSE file.

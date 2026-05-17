@@ -165,6 +165,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if web_data.get("wg_server") is not None:
             entities.append(IPTimeWireGuardServerSwitch(coordinator, entry))
 
+        # 포트포워드 설정이 지원되는 모델인 경우에만 생성
+        if web_data.get("portforward_config") is not None:
+            entities.append(IPTimePortForwardSwitch(coordinator, entry))
+
+        # UPnP 릴레이 설정이 지원되는 모델인 경우에만 생성
+        if web_data.get("upnp_relay") is not None:
+            entities.append(IPTimeUPnPRelaySwitch(coordinator, entry))
+
     async_add_entities(entities)
 
 
@@ -595,6 +603,81 @@ class IPTimeWireGuardServerSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_wg_server_run(False)
+        await self.coordinator.async_request_refresh()
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        model = web_data.get("model", "ipTIME Router")
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": model,
+            "manufacturer": "EFM Networks",
+            "model": model,
+        }
+
+
+# 요약: 포트포워딩 기능의 활성화 여부를 스위치로 제어한다. (연결 파일: api.py)
+class IPTimePortForwardSwitch(CoordinatorEntity, SwitchEntity):
+    """ipTIME Port Forwarding toggle switch."""
+
+    def __init__(self, coordinator, entry) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_nat_portforward"
+        self._attr_name = f"Port Forwarding ({entry.data.get(CONF_URL)})"
+        self._attr_icon = "mdi:router-wireless-settings"
+
+    @property
+    def is_on(self) -> bool:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        pf = web_data.get("portforward_config", {})
+        if not isinstance(pf, dict):
+            return False
+        return bool(pf.get("enable", False))
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.coordinator.api.async_set_web_portforward_enable(True)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.coordinator.api.async_set_web_portforward_enable(False)
+        await self.coordinator.async_request_refresh()
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        model = web_data.get("model", "ipTIME Router")
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": model,
+            "manufacturer": "EFM Networks",
+            "model": model,
+        }
+
+
+# 요약: UPnP 포트포워드 릴레이 활성화 여부를 스위치로 제어한다. (연결 파일: api.py)
+class IPTimeUPnPRelaySwitch(CoordinatorEntity, SwitchEntity):
+    """ipTIME UPnP Port-forwarding Relay toggle switch."""
+
+    def __init__(self, coordinator, entry) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_nat_upnp_relay"
+        self._attr_name = f"UPnP Relay ({entry.data.get(CONF_URL)})"
+        self._attr_icon = "mdi:folder-swap"
+
+    @property
+    def is_on(self) -> bool:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        return bool(web_data.get("upnp_relay", False))
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.coordinator.api.async_set_web_upnp_relay_enable(True)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.coordinator.api.async_set_web_upnp_relay_enable(False)
         await self.coordinator.async_request_refresh()
 
     @property

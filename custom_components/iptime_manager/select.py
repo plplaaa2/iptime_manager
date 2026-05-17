@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict
 
 from homeassistant.components.select import SelectEntity
@@ -58,9 +59,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if web_data.get("reboot_timer") is not None:
             entities.append(IPTimeRebootDaySelect(coordinator, entry))
             
-        # IPTV 설정이 지원되는 모델일 경우에만 생성
-        if web_data.get("iptv_config") is not None:
-            entities.append(IPTimeIPTVSelect(coordinator, entry))
+
+            
+
         
     async_add_entities(entities)
 
@@ -130,17 +131,23 @@ class IPTimeNightLEDSelect(CoordinatorEntity, SelectEntity):
         self._attr_unique_id = f"{entry.entry_id}_night_led"
         self._attr_name = f"Night LED Mode ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:led-off"
+        self._last_valid_on = None
+        self._last_valid_off = None
 
     @property
     def current_option(self) -> str | None:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         led_config = web_data.get("led_config", {})
-        mode = led_config.get("mode", "off")
+        if not isinstance(led_config, dict):
+            led_config = {}
+        mode = led_config.get("mode", "on")
 
+        # ipTIME 나이트 LED API: mode="on"이 LED가 항상 켜진 상태(Disabled), mode="off"가 LED가 항상 꺼진 상태(Always Off), mode="schedule"이 스케줄 작동(Time Scheduled)
+        # 연결될 파일: api.py
         mapping = {
-            "off": "Disabled",
-            "on": "Always Off",
-            "interval": "Time Scheduled"
+            "on": "Disabled",
+            "off": "Always Off",
+            "schedule": "Time Scheduled"
         }
         return mapping.get(mode, "Disabled")
 
@@ -148,34 +155,54 @@ class IPTimeNightLEDSelect(CoordinatorEntity, SelectEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         led_config = web_data.get("led_config", {})
-        on_time = led_config.get("on", 1320)
-        off_time = led_config.get("off", 480)
-
-        # 분 단위를 HH:MM 형식으로 변환
-        on_hour, on_min = divmod(on_time, 60)
-        off_hour, off_min = divmod(off_time, 60)
+        if not isinstance(led_config, dict):
+            led_config = {}
+            
+        on = led_config.get("on")
+        if on is not None:
+            self._last_valid_on = on
+        on_time = self._last_valid_on if self._last_valid_on is not None else 22
+        
+        off = led_config.get("off")
+        if off is not None:
+            self._last_valid_off = off
+        off_time = self._last_valid_off if self._last_valid_off is not None else 8
 
         return {
-            "mode": led_config.get("mode", "off"),
-            "start_time": f"{on_hour:02d}:{on_min:02d}",
-            "end_time": f"{off_hour:02d}:{off_min:02d}",
-            "start_minutes": on_time,
-            "end_minutes": off_time,
+            "mode": led_config.get("mode", "on"),
+            "start_time": f"{on_time:02d}:00",
+            "end_time": f"{off_time:02d}:00",
+            "start_hour": on_time,
+            "end_hour": off_time,
+            "start_minutes": on_time * 60,
+            "end_minutes": off_time * 60,
         }
 
     async def async_select_option(self, option: str) -> None:
+        # ipTIME 나이트 LED API: Disabled -> "on" (LED 항상 켜짐), Always Off -> "off" (LED 항상 꺼짐), Time Scheduled -> "schedule" (스케줄 작동)
+        # 연결될 파일: api.py
         mapping = {
-            "Disabled": "off",
-            "Always Off": "on",
-            "Time Scheduled": "interval"
+            "Disabled": "on",
+            "Always Off": "off",
+            "Time Scheduled": "schedule"
         }
-        mode = mapping.get(option, "off")
+        mode = mapping.get(option, "on")
 
         # 기존 시간 값을 유지하거나 기본값(22:00 ~ 08:00)을 사용
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         led_config = web_data.get("led_config", {})
-        on_time = led_config.get("on", 1320)
-        off_time = led_config.get("off", 480)
+        if not isinstance(led_config, dict):
+            led_config = {}
+            
+        on = led_config.get("on")
+        if on is not None:
+            self._last_valid_on = on
+        on_time = self._last_valid_on if self._last_valid_on is not None else 22
+        
+        off = led_config.get("off")
+        if off is not None:
+            self._last_valid_off = off
+        off_time = self._last_valid_off if self._last_valid_off is not None else 8
 
         await self.coordinator.api.async_set_web_led_config(mode, on_time, off_time)
         await self.coordinator.async_request_refresh()
@@ -204,12 +231,19 @@ class IPTimeRebootDaySelect(CoordinatorEntity, SelectEntity):
         self._attr_unique_id = f"{entry.entry_id}_reboot_day"
         self._attr_name = f"Auto Reboot Day ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:calendar-week"
+        self._last_valid_hour = None
+        self._last_valid_min = None
+        self._last_valid_days = None
 
     @property
     def current_option(self) -> str | None:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         timer = web_data.get("reboot_timer", {})
-        days = timer.get("days", ["Fri"])
+        
+        d = timer.get("days")
+        if d is not None:
+            self._last_valid_days = d
+        days = self._last_valid_days if self._last_valid_days is not None else ["Fri"]
 
         if not isinstance(days, list) or not days:
             return "Friday"
@@ -242,102 +276,23 @@ class IPTimeRebootDaySelect(CoordinatorEntity, SelectEntity):
             "Sunday": ["Sun"]
         }
         target_days = day_map.get(option, ["Fri"])
+        self._last_valid_days = target_days
 
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         timer = web_data.get("reboot_timer", {})
         run = timer.get("run", False)
-        hour = timer.get("hour", 4)
-        min_time = timer.get("min", 0)
+        
+        h = timer.get("hour")
+        if h is not None:
+            self._last_valid_hour = h
+        hour = self._last_valid_hour if self._last_valid_hour is not None else 4
+        
+        m = timer.get("min")
+        if m is not None:
+            self._last_valid_min = m
+        min_time = self._last_valid_min if self._last_valid_min is not None else 0
 
         await self.coordinator.api.async_set_web_reboot_timer(run, hour, min_time, target_days)
-        await self.coordinator.async_request_refresh()
-
-    @property
-    def device_info(self) -> dict[str, Any]:
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        model = web_data.get("model", "ipTIME Router")
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": model,
-            "manufacturer": "EFM Networks",
-            "model": model,
-        }
-
-
-# 요약: IPTV 셀렉트 엔티티로 제어한다. (연결 파일: api.py)
-class IPTimeIPTVSelect(CoordinatorEntity, SelectEntity):
-    """ipTIME IPTV configuration selector."""
-
-    _attr_options = [
-        "Disabled",
-        "Private IP (IGMP Proxy) - SKB, LGU+",
-        "Public IP (LAN Port) - KT",
-        "Public IP (MACVLAN) - KT",
-        "Public IP (LAN Port) - SCS",
-        "Private IP (All Ports) - SCS"
-    ]
-
-    def __init__(self, coordinator, entry) -> None:
-        super().__init__(coordinator)
-        self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_iptv_mode"
-        self._attr_name = f"IPTV Mode ({entry.data.get(CONF_URL)})"
-        self._attr_icon = "mdi:television-box"
-
-    @property
-    def current_option(self) -> str | None:
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        iptv = web_data.get("iptv_config", {})
-        
-        # iptv가 딕셔너리가 아닌 문자열 등으로 들어올 경우 대비 예외 처리
-        if not isinstance(iptv, dict):
-            mode = str(iptv)
-        else:
-            mode = iptv.get("mode", "off")
-
-        mapping = {
-            "off": "Disabled",
-            "private": "Private IP (IGMP Proxy) - SKB, LGU+",
-            "public": "Public IP (LAN Port) - KT",
-            "macvlan": "Public IP (MACVLAN) - KT",
-            "scs": "Public IP (LAN Port) - SCS",
-            "scsp": "Private IP (All Ports) - SCS"
-        }
-        return mapping.get(mode, "Disabled")
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        iptv = web_data.get("iptv_config", {})
-        
-        if not isinstance(iptv, dict):
-            iptv = {"mode": str(iptv)}
-
-        return {
-            "raw_mode": iptv.get("mode", "off"),
-            "designated_port": iptv.get("port"),
-        }
-
-    async def async_select_option(self, option: str) -> None:
-        mapping = {
-            "Disabled": "off",
-            "Private IP (IGMP Proxy) - SKB, LGU+": "private",
-            "Public IP (LAN Port) - KT": "public",
-            "Public IP (MACVLAN) - KT": "macvlan",
-            "Public IP (LAN Port) - SCS": "scs",
-            "Private IP (All Ports) - SCS": "scsp"
-        }
-        mode = mapping.get(option, "off")
-
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        iptv = web_data.get("iptv_config", {})
-        
-        if not isinstance(iptv, dict):
-            port = None
-        else:
-            port = iptv.get("port")
-
-        await self.coordinator.api.async_set_web_iptv_config(mode, port)
         await self.coordinator.async_request_refresh()
 
     @property

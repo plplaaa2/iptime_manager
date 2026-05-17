@@ -18,6 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _parse_link_metrics(link: Any) -> tuple[bool, str, str, int]:
+    # 요약: 링크 속도 및 듀플렉스 상태 문자열을 파싱한다.
     if link in (None, "", "null"):
         return False, "Down", "unknown", 0
 
@@ -68,70 +69,8 @@ def _display_port_name(port_type: Any, port_num: Any) -> str:
     return f"{str(port_type or 'Port').upper()} {port_num}"
 
 
-def _web_wireless_band_key(info: Dict[str, Any]) -> str:
-    """Extract band key string from info dict."""
-    raw_band = info.get("band")
-    if isinstance(raw_band, str) and raw_band.strip():
-        return raw_band.strip().lower()
-    if isinstance(raw_band, dict):
-        for key in ("band", "id", "name", "label"):
-            val = raw_band.get(key)
-            if val:
-                return str(val).strip().lower()
-    
-    # Fallback to 'bss' if present
-    bss_id = str(info.get("bss") or "").strip().lower()
-    if "." in bss_id:
-        return bss_id.split(".", 1)[0]
-    return bss_id or ""
-
-def _web_wireless_band_list(web_data: Dict[str, Any]) -> list[Dict[str, Any]]:
-    wireless = web_data.get("wireless", {}) if isinstance(web_data, dict) else {}
-    bands = wireless.get("band", []) if isinstance(wireless, dict) else []
-    result: list[Dict[str, Any]] = []
-    
-    seen: set[str] = set()
-    if isinstance(bands, list) and bands:
-        for band in bands:
-            if not isinstance(band, dict): continue
-            bkey = _web_wireless_band_key(band)
-            if bkey and bkey not in seen:
-                seen.add(bkey)
-                result.append(band)
-    
-    if result:
-        return result
-
-    # Fallback to BSS list if band info is missing
-    bss_list = wireless.get("bss", []) if isinstance(wireless, dict) else []
-    if isinstance(bss_list, list):
-        for bss in bss_list:
-            if not isinstance(bss, dict): continue
-            bkey = _web_wireless_band_key(bss)
-            if bkey and bkey not in seen:
-                seen.add(bkey)
-                result.append({
-                    "band": bkey,
-                    "enable": bss.get("enable"),
-                    "activated": bss.get("activated"),
-                    "bss": [bss.get("bss")] if bss.get("bss") else [],
-                })
-    return result
-
-
-def _web_wireless_band_active(band_info: Dict[str, Any]) -> bool:
-    if not isinstance(band_info, dict):
-        return False
-    if band_info.get("activated") is not None:
-        return bool(band_info.get("activated"))
-    if band_info.get("enable") is not None:
-        return bool(band_info.get("enable"))
-    if band_info.get("configured") is not None:
-        return bool(band_info.get("configured"))
-    return False
-
-
 def _web_wan_link_value(web_data: Dict[str, Any], port_info: Dict[str, Any]) -> Any:
+    # 요약: WAN 물리 포트의 실제 연결 속도 링크 값을 조회한다.
     wan_info = web_data.get("wan", {}) if isinstance(web_data, dict) else {}
     if not isinstance(wan_info, dict):
         wan_info = {}
@@ -148,33 +87,29 @@ def _web_wan_link_value(web_data: Dict[str, Any], port_info: Dict[str, Any]) -> 
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
-    """이진 센서 설정."""
+    # 요약: ipTIME 유선 포트(LAN/WAN) 연결 상태 이진 센서를 설정한다.
+    # 연결될 파일: coordinator.py, binary_sensor.py
     coordinator = hass.data[DOMAIN][entry.entry_id]
     data = coordinator.data if coordinator.data else {}
     entities = []
 
-    # Web API 기반 포트 및 Wi-Fi 센서 생성
+    # Web API 기반 물리 유선 포트 센서만 생성 (무선 Wi-Fi는 스위치 엔티티로 통합 관리하므로 생성 제외)
     web_data = data.get("web", {})
     web_ports = web_data.get("ports", [])
-    web_bands = _web_wireless_band_list(web_data)
 
-    if web_ports or web_bands:
+    if web_ports:
         for port_info in web_ports:
             port_type = str(port_info.get("type", "port")).lower()
             port_num = port_info.get("port")
             if port_num is not None:
                 entities.append(IPTimeInterfaceBinarySensor(coordinator, entry, f"{port_type}:{port_num}", port_info=port_info))
-        
-        for band_info in web_bands:
-            band_key = _web_wireless_band_key(band_info)
-            if band_key:
-                entities.append(IPTimeInterfaceBinarySensor(coordinator, entry, f"wifi:{band_key}", port_info=band_info))
 
     async_add_entities(entities)
 
 
 class IPTimeInterfaceBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    """인터페이스 연결 상태 이진 센서 (WAN/LAN)."""
+    # 요약: ipTIME 공유기 물리 유선 포트(LAN/WAN)의 실시간 연결 상태 및 속도를 제공하는 이진 센서.
+    # 연결될 파일: coordinator.py, binary_sensor.py, switch.py
 
     def __init__(
         self,
@@ -188,40 +123,46 @@ class IPTimeInterfaceBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._entry = entry
         self._port_info = port_info or {}
 
-        if self._iface_name.startswith("wifi:"):
-            band_key = str(self._iface_name.split(":", 1)[1]).strip().lower()
-            band_label = {
-                "2g": "2.4G",
-                "5g": "5G",
-                "5g-2": "5G-2",
-                "6g": "6G",
-                "6g-2": "6G-2",
-                "mlo": "MLO",
-            }.get(band_key, band_key or "Unknown")
-            self._attr_name = f"WiFi {band_label} Status ({entry.data.get(CONF_URL)})"
-            self._attr_unique_id = f"{entry.entry_id}_wifi_{_entity_key_part(band_key)}_status"
-            self._attr_device_class = None
-        else:
-            port_type = str(self._port_info.get("type", "port")).upper()
-            port_num = self._port_info.get("port")
-            self._attr_name = f"{_display_port_name(port_type, port_num)} Status ({entry.data.get(CONF_URL)})"
-            self._attr_unique_id = f"{entry.entry_id}_{_normalize_port_key(port_type, port_num)}_status"
-            self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+        port_type = str(self._port_info.get("type", "port")).upper()
+        port_num = self._port_info.get("port")
+        self._attr_name = f"{_display_port_name(port_type, port_num)} Status ({entry.data.get(CONF_URL)})"
+        self._attr_unique_id = f"{entry.entry_id}_{_normalize_port_key(port_type, port_num)}_status"
+        self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    def _get_current_info(self) -> Dict[str, Any] | None:
+        # 요약: 코디네이터의 실시간 수집 데이터에서 이 포트의 최신 정보를 찾아 반환한다.
+        if not self.coordinator.data:
+            return None
+
+        web_data = self.coordinator.data.get("web", {})
+        if ":" in self._iface_name:
+            parts = self._iface_name.split(":", 1)
+            port_type = parts[0]
+            try:
+                port_num = int(parts[1])
+            except ValueError:
+                port_num = parts[1]
+            
+            ports = web_data.get("ports", [])
+            return next(
+                (p for p in ports if str(p.get("type", "")).lower() == port_type and p.get("port") == port_num), 
+                None
+            )
+        
+        return None
 
     @property
     def is_on(self) -> bool:
-        """활성 상태를 판단한다 (Web 전용)."""
-        if not self.coordinator.data:
+        # 요약: 물리 유선 포트가 활성화(케이블 연결됨) 상태인지 판단한다.
+        info = self._get_current_info()
+        if not info:
             return False
 
-        if self._iface_name.startswith("wifi:"):
-            return _web_wireless_band_active(self._port_info)
-        
-        if ":" in self._iface_name: # "type:num" \ud615\uc2dd\uc758 Web \ud3ec\ud2b8
-            port_type = str(self._port_info.get("type", "")).lower()
-            link_value = self._port_info.get("link")
+        if ":" in self._iface_name:
+            port_type = str(info.get("type", "")).lower()
+            link_value = info.get("link")
             if port_type == "wan":
-                link_value = _web_wan_link_value(self.coordinator.data.get("web", {}), self._port_info)
+                link_value = _web_wan_link_value(self.coordinator.data.get("web", {}), info)
             is_on, _, _, _ = _parse_link_metrics(link_value)
             return is_on
 
@@ -229,31 +170,20 @@ class IPTimeInterfaceBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """추가 상태 정보를 제공한다 (Web 전용)."""
-        if not self.coordinator.data:
+        # 요약: 물리 포트의 세부 링크 속도(Gbps/Mbps) 및 듀플렉스 정보를 속성 값으로 제공한다.
+        info = self._get_current_info()
+        if not info:
             return {}
 
-        if self._iface_name.startswith("wifi:"):
-            band_key = str(self._iface_name.split(":", 1)[1]).strip().lower()
-            band_label = {
-                "2g": "2.4G", "5g": "5G", "5g-2": "5G-2", "6g": "6G", "6g-2": "6G-2", "mlo": "MLO",
-            }.get(band_key, band_key or "Unknown")
-            active = _web_wireless_band_active(self._port_info)
-            return {
-                "interface_name": f"WiFi {band_label}",
-                "link_speed": "Enabled" if active else "Disabled",
-                "status_code": 1 if active else 0,
-            }
-
         if ":" in self._iface_name:
-            link_value = self._port_info.get("link")
-            port_type = str(self._port_info.get("type", "")).lower()
+            link_value = info.get("link")
+            port_type = str(info.get("type", "")).lower()
             if port_type == "wan":
-                link_value = _web_wan_link_value(self.coordinator.data.get("web", {}), self._port_info)
+                link_value = _web_wan_link_value(self.coordinator.data.get("web", {}), info)
 
             is_on, link_speed, _, speed = _parse_link_metrics(link_value)
             return {
-                "interface_name": _display_port_name(self._port_info.get("type"), self._port_info.get("port")),
+                "interface_name": _display_port_name(info.get("type"), info.get("port")),
                 "link_speed": link_speed,
                 "status_code": speed if is_on else 0,
             }
@@ -262,10 +192,7 @@ class IPTimeInterfaceBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def icon(self) -> str:
-        """연결 상태에 따른 아이콘 변경."""
-        if self._iface_name.startswith("wifi:"):
-            return "mdi:router-wireless" if self.is_on else "mdi:router-wireless-off"
-
+        # 요약: 유선 포트 연결 여부에 따른 이더넷 아이콘 매핑.
         port_type = str(self._port_info.get("type", "")).lower()
         if port_type in ("lan", "wan"):
             return "mdi:ethernet" if self.is_on else "mdi:ethernet-off"
@@ -276,7 +203,6 @@ class IPTimeInterfaceBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def device_info(self) -> dict[str, Any]:
-        """기기 정보 제공 (Web 전용)."""
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         model = web_data.get("model", "ipTIME Router")
         
