@@ -757,21 +757,14 @@ class IPTimeAPI:
         if not isinstance(wg_config, dict):
             wg_config = {}
 
-        # 기존 설정을 그대로 보존하면서 run, enable, commit 값을 동적 덮어쓰기 (예외 방지)
-        params = wg_config.copy()
-        params["run"] = bool(run)
-        params["enable"] = bool(run)
-        params["commit"] = True
-
-        # 필수 파라미터 기본값 방어
-        if "ip" not in params:
-            params["ip"] = "10.0.21.1"
-        if "subnet" not in params:
-            params["subnet"] = "24"
-        if "port" not in params:
-            params["port"] = 53344
-        if "nat" not in params:
-            params["nat"] = True
+        # 펌웨어 유효성 검사(Validation) 통과를 위해, 오직 필수 5가지 스펙 필드(run, ip, subnet, port, nat)만 정제하여 전송 (pubkey 등 메타데이터 제외)
+        params = {
+            "run": bool(run),
+            "ip": wg_config.get("ip", "10.0.21.1"),
+            "subnet": wg_config.get("subnet", "24"),
+            "port": int(wg_config.get("port", 53344)),
+            "nat": bool(wg_config.get("nat", True))
+        }
 
         try:
             response = await self._async_service_json("wg/server/set", params)
