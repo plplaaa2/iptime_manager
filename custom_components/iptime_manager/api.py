@@ -295,6 +295,11 @@ class IPTimeAPI:
             if iptv_config.get("result") is not None:
                 self.web_result["iptv_config"] = iptv_config["result"]
 
+            # 나이트 LED 설정 정보 수집 (연결될 파일: select.py)
+            led_config = await self._async_service_json("led/config")
+            if led_config.get("result") is not None:
+                self.web_result["led_config"] = led_config["result"]
+
             # WireGuard 서버 정보 수집 (연결될 파일: switch.py)
             wg_server = await self._async_service_json("wg/server/show")
             if wg_server.get("result") is not None:
@@ -775,5 +780,24 @@ class IPTimeAPI:
                 _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 중 API 오류: {response.get('error')}")
         except Exception as err:
             _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 실패: {err}")
+        return False
+
+    async def async_set_web_led_config(self, mode: str, on_time: int, off_time: int) -> bool:
+        """나이트 LED 설정을 변경한다. (연결될 파일: select.py)"""
+        params = {
+            "mode": mode,
+            "on": on_time,
+            "off": off_time
+        }
+
+        try:
+            response = await self._async_service_json("led/config", params)
+            if not response.get("error"):
+                _LOGGER.info(f"나이트 LED 설정 변경 완료: mode={mode}, on={on_time}, off={off_time}")
+                return True
+            else:
+                _LOGGER.warning(f"나이트 LED 설정 변경 중 API 오류: {response.get('error')}")
+        except Exception as err:
+            _LOGGER.warning(f"나이트 LED 설정 변경 실패: {err}")
         return False
 
