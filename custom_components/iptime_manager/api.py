@@ -458,7 +458,7 @@ class IPTimeAPI:
         # 나이트 LED 모드 설정 (연결될 파일: select.py)
         if not self._beta_ui:
             return False
-        params: Dict[str, Any] = {"mode": mode}
+        params: Dict[str, Any] = {"mode": mode, "commit": True}
         if mode == "interval":
             params["on"] = int(on_time)
             params["off"] = int(off_time)
@@ -794,9 +794,9 @@ class IPTimeAPI:
 
     async def async_set_web_iptv_config(self, mode: str, port: int | None = None) -> bool:
         """IPTV 설정을 변경한다. (연결될 파일: select.py)"""
-        # 1단계: IPTV 모드 설정 변경 (iptv/mode API 호출)
+        # 1단계: IPTV 모드 설정 변경 (iptv/mode API 호출, commit: True 동반 전송)
         try:
-            response_mode = await self._async_service_json("iptv/mode", {"mode": mode})
+            response_mode = await self._async_service_json("iptv/mode", {"mode": mode, "commit": True})
             if response_mode.get("error"):
                 _LOGGER.warning(f"IPTV 모드 변경 중 API 오류: {response_mode.get('error')}")
                 return False
@@ -805,11 +805,10 @@ class IPTimeAPI:
             _LOGGER.warning(f"IPTV 모드 변경 실패 (iptv/mode): {err}")
             return False
 
-        # 2단계: 지정 LAN 포트 설정 변경 (iptv/public/port API 호출)
-        # 포트 지정이 필요한 public 모드이고 port가 제공되었을 때 호출
+        # 2단계: 지정 LAN 포트 설정 변경 (iptv/public/port API 호출, commit: True 동반 전송)
         if mode == "public" and port is not None:
             try:
-                response_port = await self._async_service_json("iptv/public/port", {"port": int(port)})
+                response_port = await self._async_service_json("iptv/public/port", {"port": int(port), "commit": True})
                 if response_port.get("error"):
                     _LOGGER.warning(f"IPTV 공인 IP 지정 포트 변경 중 API 오류: {response_port.get('error')}")
                     return False
@@ -826,19 +825,19 @@ class IPTimeAPI:
         if not isinstance(wg_config, dict):
             wg_config = {}
 
-        # 펌웨어 유효성 검사(Validation) 통과를 위해, 오직 필수 5가지 스펙 필드(run, ip, subnet, port, nat)만 정제하여 전송 (pubkey 등 메타데이터 제외)
+        # 펌웨어 유효성 검사 통과를 위해, 오직 리얼 필수 4대 스펙 필드(active, address, port, nat)와 commit만 전송
         params = {
-            "run": bool(run),
-            "ip": wg_config.get("ip", "10.0.21.1"),
-            "subnet": wg_config.get("subnet", "24"),
+            "active": bool(run),
+            "address": wg_config.get("ip", "10.0.21.1"),
             "port": int(wg_config.get("port", 53344)),
-            "nat": bool(wg_config.get("nat", True))
+            "nat": bool(wg_config.get("nat", True)),
+            "commit": True
         }
 
         try:
             response = await self._async_service_json("wg/server/set", params)
             if not response.get("error"):
-                _LOGGER.info(f"WireGuard 서버 실행 상태 변경 완료: {run}")
+                _LOGGER.info(f"WireGuard 서버 실행 상태 변경 완료 (wg/server/set): active={run}")
                 return True
             else:
                 _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 중 API 오류: {response.get('error')}")
