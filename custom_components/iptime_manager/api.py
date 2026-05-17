@@ -293,7 +293,15 @@ class IPTimeAPI:
             # IPTV 설정 정보 수집 (연결될 파일: select.py)
             iptv_config = await self._async_service_json("iptv/config")
             if iptv_config.get("result") is not None:
-                self.web_result["iptv_config"] = iptv_config["result"]
+                iptv_data = iptv_config["result"]
+                if isinstance(iptv_data, dict):
+                    self.web_result["iptv_config"] = iptv_data
+                else:
+                    # 결과 자체가 문자열 "off", "private" 등일 경우 딕셔너리 규격으로 표준 정제 (연결될 파일: select.py)
+                    self.web_result["iptv_config"] = {
+                        "mode": str(iptv_data),
+                        "port": 4  # 기본 지정 포트
+                    }
 
             # 나이트 LED 설정 정보 수집 (연결될 파일: select.py)
             led_config = await self._async_service_json("led/config")
@@ -303,7 +311,18 @@ class IPTimeAPI:
             # WireGuard 서버 정보 수집 (연결될 파일: switch.py)
             wg_server = await self._async_service_json("wg/server/show")
             if wg_server.get("result") is not None:
-                self.web_result["wg_server"] = wg_server["result"]
+                wg_data = wg_server["result"]
+                if isinstance(wg_data, dict):
+                    # 실물 펌웨어 응답 규격(active, address, port, nat)을 홈어시스턴트 규격(run, ip, subnet, port, nat)으로 표준 맵핑 변환
+                    self.web_result["wg_server"] = {
+                        "run": bool(wg_data.get("active", False)),
+                        "ip": wg_data.get("address", "10.0.21.1"),
+                        "subnet": "24",  # 실물 API 조회에서 subnet이 생략되는 경우 24로 고정 매핑
+                        "port": int(wg_data.get("port", 53344)),
+                        "nat": bool(wg_data.get("nat", True))
+                    }
+                else:
+                    self.web_result["wg_server"] = {}
 
             product_html = await self._async_request("GET", f"{self._url}/ui/port_setup")
             product_match = re.search(r'PRODUCT:\s*"([^"]+)"', product_html)
@@ -543,11 +562,25 @@ class IPTimeAPI:
                 _LOGGER.debug(f"베타 UI 로그인 응답: {res_json}")
                 
                 if res_json and res_json.get('result') == "done":
-                    # 쿠키 추출
-                    session_id = response.cookies.get('efm_session_id')
+                    # 쿠키 추출 수동화 및 자동화 병합 최종 강화 (연결될 파일: select.py, switch.py)
+                    session_id = None
+                    set_cookie_headers = response.headers.getall("Set-Cookie", [])
+                    for cookie_str in set_cookie_headers:
+                        if "efm_session_id=" in cookie_str:
+                            parts = cookie_str.split(";")
+                            for part in parts:
+                                if "efm_session_id=" in part:
+                                    session_id = part.split("=")[-1].strip()
+                                    break
+                    
+                    if not session_id:
+                        cookie_obj = response.cookies.get('efm_session_id')
+                        if cookie_obj:
+                            session_id = cookie_obj.value
+                            
                     if session_id:
-                        self.efm_session_id = session_id.value
-                        _LOGGER.debug(f"베타 UI 세션 아이디 확보: {self.efm_session_id}")
+                        self.efm_session_id = session_id
+                        _LOGGER.info(f"베타 UI 세션 아이디 확보: {self.efm_session_id}")
                     else:
                         _LOGGER.debug("쿠키가 없으나 결과가 done이므로 계속 진행")
                         # 쿠키가 없어도 일단 진행 (이후 요청에서 401 뜨면 그때 세션 파기)
@@ -743,18 +776,31 @@ class IPTimeAPI:
 
     async def async_set_web_iptv_config(self, mode: str, port: int | None = None) -> bool:
         """IPTV 설정을 변경한다. (연결될 파일: select.py)"""
-        params: Dict[str, Any] = {"mode": mode}
-        if port is not None:
-            params["port"] = port
-
+        # 1단계: IPTV 모드 설정 변경 (iptv/mode API 호출)
         try:
-            response = await self._async_service_json("iptv/config", params)
-            if not response.get("error"):
-                _LOGGER.info(f"IPTV 설정 변경 완료: {mode}")
-                return True
+            response_mode = await self._async_service_json("iptv/mode", {"mode": mode})
+            if response_mode.get("error"):
+                _LOGGER.warning(f"IPTV 모드 변경 중 API 오류: {response_mode.get('error')}")
+                return False
+            _LOGGER.info(f"IPTV 모드 변경 완료 (iptv/mode): {mode}")
         except Exception as err:
-            _LOGGER.warning(f"IPTV 설정 변경 실패: {err}")
-        return False
+            _LOGGER.warning(f"IPTV 모드 변경 실패 (iptv/mode): {err}")
+            return False
+
+        # 2단계: 지정 LAN 포트 설정 변경 (iptv/public/port API 호출)
+        # 포트 지정이 필요한 public 모드이고 port가 제공되었을 때 호출
+        if mode == "public" and port is not None:
+            try:
+                response_port = await self._async_service_json("iptv/public/port", {"port": int(port)})
+                if response_port.get("error"):
+                    _LOGGER.warning(f"IPTV 공인 IP 지정 포트 변경 중 API 오류: {response_port.get('error')}")
+                    return False
+                _LOGGER.info(f"IPTV 공인 IP 지정 포트 변경 완료 (iptv/public/port): {port}")
+            except Exception as err:
+                _LOGGER.warning(f"IPTV 공인 IP 지정 포트 변경 실패 (iptv/public/port): {err}")
+                return False
+
+        return True
 
     async def async_set_web_wg_server_run(self, run: bool) -> bool:
         """WireGuard 서버 실행 상태를 변경한다. (연결될 파일: switch.py)"""
