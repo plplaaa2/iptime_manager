@@ -46,12 +46,21 @@ def _option_to_policy(option: str) -> tuple[bool, str]:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
+    web_data = (coordinator.data or {}).get("web", {})
     entities = [IPTimeGeoIPSelect(coordinator, entry)]
     
     if coordinator.api._beta_ui:
-        entities.append(IPTimeNightLEDSelect(coordinator, entry))
-        entities.append(IPTimeRebootDaySelect(coordinator, entry))
-        entities.append(IPTimeIPTVSelect(coordinator, entry))
+        # LED 설정이 지원되는 모델일 경우에만 생성
+        if web_data.get("led_config") is not None:
+            entities.append(IPTimeNightLEDSelect(coordinator, entry))
+            
+        # 자동 재부팅 설정이 지원되는 모델일 경우에만 생성
+        if web_data.get("reboot_timer") is not None:
+            entities.append(IPTimeRebootDaySelect(coordinator, entry))
+            
+        # IPTV 설정이 지원되는 모델일 경우에만 생성
+        if web_data.get("iptv_config") is not None:
+            entities.append(IPTimeIPTVSelect(coordinator, entry))
         
     async_add_entities(entities)
 

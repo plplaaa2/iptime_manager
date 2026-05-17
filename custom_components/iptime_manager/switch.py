@@ -126,28 +126,44 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             entities.append(IPTimeWifiSwitch(coordinator, entry, bss_id))
 
     if coordinator.api._beta_ui:
-        # 보안 스위치들 추가
-        entities.append(IPTimeAccessListSwitch(coordinator, entry)) # 원격 관리 전용
+        # 원격 관리 설정(Access List) 지원 모델인 경우에만 생성
+        if web_data.get("acl") is not None:
+            entities.append(IPTimeAccessListSwitch(coordinator, entry))
         
-        security_items = [
-            ("csrf", "CSRF Prevention", "mdi:shield-lock"),
-            ("arp_virus", "ARP Virus Protection", "mdi:shield-bug"),
-            ("syn_flood", "SYN Flood Protection", "mdi:shield-alert"),
-            ("smurf", "Smurf Protection", "mdi:shield-remove"),
-            ("ip_source_routing", "IP Source Routing Block", "mdi:router-network"),
-            ("ip_spoofing", "IP Spoofing Protection", "mdi:incognito"),
-            ("inbound_ping", "Block Inbound Ping", "mdi:network-lock"),
-            ("outbound_ping", "Block Outbound Ping", "mdi:network-lock"),
-        ]
-        for key, name, icon in security_items:
-            entities.append(IPTimeSecuritySwitch(coordinator, entry, key, name, icon))
+        # 보안 제어 설정이 지원되는 모델인 경우에만 생성
+        if web_data.get("security_dos") is not None:
+            security_items = [
+                ("csrf", "CSRF Prevention", "mdi:shield-lock"),
+                ("arp_virus", "ARP Virus Protection", "mdi:shield-bug"),
+                ("syn_flood", "SYN Flood Protection", "mdi:shield-alert"),
+                ("smurf", "Smurf Protection", "mdi:shield-remove"),
+                ("ip_source_routing", "IP Source Routing Block", "mdi:router-network"),
+                ("ip_spoofing", "IP Spoofing Protection", "mdi:incognito"),
+                ("inbound_ping", "Block Inbound Ping", "mdi:network-lock"),
+                ("outbound_ping", "Block Outbound Ping", "mdi:network-lock"),
+            ]
+            for key, name, icon in security_items:
+                entities.append(IPTimeSecuritySwitch(coordinator, entry, key, name, icon))
 
-        # sysmisc 스위치들 추가 (연결될 파일: api.py)
-        entities.append(IPTimeUPnPSwitch(coordinator, entry))
-        entities.append(IPTimeAutoRebootSwitch(coordinator, entry))
-        entities.append(IPTimeKeepConnectSwitch(coordinator, entry))
-        entities.append(IPTimeWanReconnectSwitch(coordinator, entry))
-        entities.append(IPTimeWireGuardServerSwitch(coordinator, entry))
+        # UPnP 설정이 지원되는 모델인 경우에만 생성
+        if web_data.get("upnp_config") is not None:
+            entities.append(IPTimeUPnPSwitch(coordinator, entry))
+            
+        # 자동 재부팅 설정이 지원되는 모델인 경우에만 생성
+        if web_data.get("reboot_timer") is not None:
+            entities.append(IPTimeAutoRebootSwitch(coordinator, entry))
+            
+        # 인터넷 연결 유지 설정이 지원되는 모델인 경우에만 생성
+        if web_data.get("nat_config") is not None:
+            entities.append(IPTimeKeepConnectSwitch(coordinator, entry))
+            
+        # WAN포트 끊김 시 재연결 설정이 지원되는 모델인 경우에만 생성
+        if web_data.get("wan_heartbeat") is not None:
+            entities.append(IPTimeWanReconnectSwitch(coordinator, entry))
+
+        # 와이어가드 서버 설정이 수집되는 하드웨어 모델인 경우에만 스위치 생성 (예외 처리)
+        if web_data.get("wg_server") is not None:
+            entities.append(IPTimeWireGuardServerSwitch(coordinator, entry))
 
     async_add_entities(entities)
 
