@@ -20,6 +20,7 @@ iptime_manager (루트)
         |   api.py
         |   binary_sensor.py
         |   button.py
+        |   CHANGELOG.md
         |   config_flow.py
         |   const.py
         |   coordinator.py
