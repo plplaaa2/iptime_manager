@@ -111,6 +111,11 @@ class IPTimeDeviceEntity(CoordinatorEntity, ScannerEntity):
         }
 
     @property
+    def icon(self) -> str:
+        """연결 상태에 따른 아이콘 리턴 (연결: cellphone-nfc / 해제: cellphone-remove)"""
+        return "mdi:cellphone-nfc" if self.is_connected else "mdi:cellphone-remove"
+
+    @property
     def device_info(self) -> dict[str, Any]:
         return {
             "identifiers": {(DOMAIN, self._entry.entry_id)},
