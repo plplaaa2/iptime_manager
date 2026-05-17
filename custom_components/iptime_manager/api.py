@@ -320,10 +320,7 @@ class IPTimeAPI:
 
 
 
-            # 나이트 LED 설정 정보 수집 (연결될 파일: select.py)
-            led_config = await self._async_service_json("led/config")
-            if led_config.get("result") is not None:
-                self.web_result["led_config"] = led_config["result"]
+
 
             # WireGuard 서버 정보 수집 (연결될 파일: switch.py)
             wg_server = await self._async_service_json("wg/server/show")
@@ -453,14 +450,17 @@ class IPTimeAPI:
 
         return False
 
-    async def async_set_web_led_config(self, mode: str, on_time: int = 1320, off_time: int = 480) -> bool:
-        # 나이트 LED 모드 설정 (연결될 파일: select.py)
+    async def async_set_web_led_config(self, mode: str, on_time: int = 22, off_time: int = 8) -> bool:
+        # 요약: 나이트 LED 모드를 변경한다. (연결될 파일: select.py)
+        # 스케줄 정보가 누락되어 작동 안 하는 결함을 예방하기 위해, 항상 on, off 파라미터를 동반 주입
         if not self._beta_ui:
             return False
-        params: Dict[str, Any] = {"mode": mode, "commit": True}
-        if mode == "interval":
-            params["on"] = int(on_time)
-            params["off"] = int(off_time)
+        params: Dict[str, Any] = {
+            "mode": mode,
+            "on": int(on_time),
+            "off": int(off_time),
+            "commit": True
+        }
         response = await self._async_service_json("led/config", params)
         return not response.get("error")
 
