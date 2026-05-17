@@ -6,7 +6,7 @@
 ![version](https://img.shields.io/badge/version-v1.4.0-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
-The most powerful and modern Home Assistant integration for EFM ipTIME routers. Supporting models from the latest Flutter-based Beta UI to AX-series routers, it has transitioned completely to a high-performance **JSON-RPC (Web API) architecture**, delivering flawless real-time monitoring and robust system control without requiring any complex SNMP configuration.
+The most powerful and modern Home Assistant integration for EFM ipTIME routers. Supporting all models featuring the **3rd-generation responsive IUX (including AX-series)** and the latest Flutter-based Beta UI, it has transitioned completely to a high-performance **JSON-RPC (Web API) architecture**, delivering flawless real-time monitoring and robust system control without requiring any complex SNMP configuration.
 
 ---
 
@@ -25,8 +25,8 @@ The most powerful and modern Home Assistant integration for EFM ipTIME routers. 
 * **Unified Entities & Optimization**: Replaced redundant, slow-updating Wi-Fi binary sensors with unified, high-performance wireless switches (`switch`).
 * **Granular SSID Control**: A single switch entity manages and displays the active state, frequency band, SSID name, security method, and visibility (hidden/visible). Toggles operate on a per-SSID (BSS) level rather than the entire band, preventing router wireless chipset restarts and keeping other IoT devices connected seamlessly.
 
-### 🔒 AX-Series Security & Smart GeoIP Lockout Safeguard
-* **8 Dedicated Security Switches**: Reverse-engineered AX-series security APIs to control Remote Admin port access, CSRF security block, ARP Virus Shield, Inbound Ping block, and more.
+### 🔒 3rd-Gen IUX Security & Smart GeoIP Lockout Safeguard
+* **8 Dedicated Security Switches**: Reverse-engineered 3rd-generation responsive IUX security APIs to control Remote Admin port access, CSRF security block, ARP Virus Shield, Inbound Ping block, and more.
 * **Lockout Disaster Prevention**: Includes GeoIP total blocked count (`sensor`) and policy selection (`select`). When switching to Country Allow mode, if the allow list is empty or missing, the integration **automatically force-injects the South Korea ('kr') code**, preventing catastrophic lockouts where you accidentally block your own administrative access.
 
 ### 🔌 Advanced NAT Settings (Port Forwarding & UPnP Relay)
