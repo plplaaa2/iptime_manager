@@ -95,17 +95,17 @@ class IPTimeAPI:
             return ""
 
     async def _async_service_json(self, method: str, params: Any = None) -> Dict[str, Any]:
-        """beta UI JSON-RPC 호출."""
+        """beta UI JSON-RPC 호출 (자동 재로그인 복구 탑재)."""
         url = f"{self._url}{BETA_SERVICE_URN}"
         payload: Dict[str, Any] = {"method": method}
         if params is not None:
             payload["params"] = params
 
-        headers = self.headers.copy()
-        if self.efm_session_id:
-            headers["Cookie"] = f"efm_session_id={self.efm_session_id}"
-
-        try:
+        async def _execute_call():
+            headers = self.headers.copy()
+            if self.efm_session_id:
+                headers["Cookie"] = f"efm_session_id={self.efm_session_id}"
+            
             session = await self._async_get_session()
             async with session.post(url, json=payload, headers=headers) as response:
                 try:
@@ -116,6 +116,24 @@ class IPTimeAPI:
                         return loads(text)
                     except Exception:
                         return {}
+
+        try:
+            res = await _execute_call()
+            # 만약 세션 만료 에러가 감지되거나 빈 응답인 경우 즉시 재로그인 시도
+            is_unauthorized = False
+            if res.get("error") is not None:
+                err_code = res.get("error", {}).get("code")
+                err_msg = str(res.get("error", {}).get("message", "")).lower()
+                if err_code in [-32000, -32602] or "session" in err_msg or "login" in err_msg or "auth" in err_msg:
+                    is_unauthorized = True
+            
+            if is_unauthorized or not res:
+                _LOGGER.debug(f"세션 만료 감지 또는 빈 응답으로 재로그인 실행: {method}")
+                self.efm_session_id = None
+                if await self.login_beta_ui():
+                    # 새 세션으로 즉시 1회 재시도!
+                    res = await _execute_call()
+            return res
         except Exception as err:
             _LOGGER.debug(f"서비스 호출 실패 ({method}): {err}")
             return {}
@@ -828,22 +846,6 @@ class IPTimeAPI:
             _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 실패: {err}")
         return False
 
-    async def async_set_web_led_config(self, mode: str, on_time: int, off_time: int) -> bool:
-        """나이트 LED 설정을 변경한다. (연결될 파일: select.py)"""
-        params = {
-            "mode": mode,
-            "on": on_time,
-            "off": off_time
-        }
 
-        try:
-            response = await self._async_service_json("led/config", params)
-            if not response.get("error"):
-                _LOGGER.info(f"나이트 LED 설정 변경 완료: mode={mode}, on={on_time}, off={off_time}")
-                return True
-            else:
-                _LOGGER.warning(f"나이트 LED 설정 변경 중 API 오류: {response.get('error')}")
-        except Exception as err:
-            _LOGGER.warning(f"나이트 LED 설정 변경 실패: {err}")
-        return False
+
 
