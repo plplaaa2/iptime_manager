@@ -54,6 +54,8 @@ class IPTimeAPI:
         self.result: Dict[str, Any] = {}
         self.web_result: Dict[str, Any] = {}
         self._latest_firmware_version: Any = None
+        self._last_caching_time = 0.0
+        self._cached_model = None
 
         self._url = url if "http" in url else "http://" + url
         if self._url.endswith("/"):
@@ -183,19 +185,26 @@ class IPTimeAPI:
         return True
 
     async def async_get_web_data(self) -> bool:
-        """웹 UI에서 노출되는 시스템/포트 정보를 수집한다."""
-        self.web_result = {}
+        """웹 UI에서 노출되는 시스템/포트 정보를 수집한다. (연결될 파일: coordinator.py)"""
+        # 요약: 스마트 캐싱 엔진을 적용하여 실시간 데이터는 5초마다 수집하고, 정적 설정 데이터는 5분 캐시 처리한다.
+        # 연결 파일: coordinator.py
+        if self.web_result is None:
+            self.web_result = {}
 
         if not self._beta_ui:
             return False
 
         try:
+            now = time.time()
+            # 5분(300초) 단위 캐싱 조건 성립 여부 판단
+            use_cache = (now - self._last_caching_time) < 300.0
+
+            # 1. 펌웨어 기본 정보 수집 (내부 24시간 캐시 지원됨)
             firmware = await self._async_service_json("firmware/info")
             if firmware.get("result"):
                 self.web_result["firmware"] = firmware["result"]
 
             firmware_block = self.web_result.setdefault("firmware", {})
-            now = time.time()
             latest_cached = (
                 self._latest_firmware_version is not None
                 and (now - self._latest_firmware_checked_at) < 86400
@@ -228,18 +237,97 @@ class IPTimeAPI:
                         if self._latest_firmware_raw is not None:
                             firmware_block["latest_raw"] = self._latest_firmware_raw
 
-            lan = await self._async_service_json("network/interface/lan/info")
-            if lan.get("result"):
-                self.web_result["lan"] = lan["result"]
+            # 2. 공유기 모델명 수집 (평생 캐시 처리: CGI 파싱 부하 최소화)
+            if self._cached_model is not None:
+                self.web_result["model"] = self._cached_model
+            else:
+                product_html = await self._async_request("GET", f"{self._url}/ui/port_setup")
+                product_match = re.search(r'PRODUCT:\s*"([^"]+)"', product_html)
+                model_name = _normalize_model_name(product_match.group(1) if product_match else None)
+                self._cached_model = model_name
+                self.web_result["model"] = model_name
 
-            wan = await self._async_service_json("network/interface/wan1/info")
-            if wan.get("result"):
-                self.web_result["wan"] = wan["result"]
+            # 3. 자주 변경되지 않는 설정값 (LAN, WAN, DNS, GeoIP, ACL, DoS, UPnP, Reboot, WireGuard 등) 캐싱 처리
+            if not use_cache or "lan" not in self.web_result or "wan" not in self.web_result:
+                _LOGGER.debug("정적 설정 데이터 캐시 만료 또는 최초 수집: 공유기 쿼리 수행 시작")
+                
+                lan = await self._async_service_json("network/interface/lan/info")
+                if lan.get("result"):
+                    self.web_result["lan"] = lan["result"]
 
-            dns = await self._async_service_json("network/dns/info")
-            if dns.get("result"):
-                self.web_result["dns"] = dns["result"]
+                wan = await self._async_service_json("network/interface/wan1/info")
+                if wan.get("result"):
+                    self.web_result["wan"] = wan["result"]
 
+                dns = await self._async_service_json("network/dns/info")
+                if dns.get("result"):
+                    self.web_result["dns"] = dns["result"]
+
+                geoip = await self._async_service_json("geoip/get")
+                if geoip.get("result"):
+                    self.web_result.setdefault("security", {})["geoip"] = geoip["result"]
+                    self.web_result["geoip"] = geoip["result"]
+
+                geoip_pcount = await self._async_service_json("geoip/blocked/pcount")
+                if geoip_pcount.get("result") is not None:
+                    blocked_result = geoip_pcount.get("result")
+                    blocked_count = None
+                    if isinstance(blocked_result, dict):
+                        if "total" in blocked_result and blocked_result["total"] is not None:
+                            blocked_count = blocked_result["total"]
+                        elif "count" in blocked_result and blocked_result["count"] is not None:
+                            blocked_count = blocked_result["count"]
+                        elif "list" in blocked_result and isinstance(blocked_result["list"], list):
+                            blocked_count = len(blocked_result["list"])
+                    elif isinstance(blocked_result, list):
+                        blocked_count = len(blocked_result)
+                    elif isinstance(blocked_result, (int, float)):
+                        blocked_count = int(blocked_result)
+                    if blocked_count is not None:
+                        self.web_result["geoip_blocked_pcount"] = blocked_count
+
+                accesslist = await self._async_service_json("acl/config")
+                if accesslist.get("result"):
+                    self.web_result.setdefault("security", {})["accesslist"] = accesslist["result"]
+                    self.web_result["acl"] = accesslist["result"]
+
+                dos_config = await self._async_service_json("dos/config")
+                if dos_config.get("result"):
+                    self.web_result["security_dos"] = dos_config["result"]
+
+                upnp_config = await self._async_service_json("upnp/config")
+                if upnp_config.get("result") is not None:
+                    self.web_result["upnp_config"] = upnp_config["result"]
+
+                portforward_config = await self._async_service_json("portforward/config")
+                if portforward_config.get("result") is not None:
+                    self.web_result["portforward_config"] = portforward_config["result"]
+
+                upnp_relay = await self._async_service_json("upnp/relay")
+                if upnp_relay.get("result") is not None:
+                    self.web_result["upnp_relay"] = upnp_relay.get("result")
+
+                reboot_timer = await self._async_service_json("reboot/timer")
+                if reboot_timer.get("result") is not None:
+                    self.web_result["reboot_timer"] = reboot_timer["result"]
+
+                wg_server = await self._async_service_json("wg/server/show")
+                if wg_server.get("result") is not None:
+                    wg_data = wg_server["result"]
+                    if isinstance(wg_data, dict):
+                        self.web_result["wg_server"] = {
+                            "run": bool(wg_data.get("active", False)),
+                            "ip": wg_data.get("address", "10.0.21.1"),
+                            "subnet": "24",
+                            "port": int(wg_data.get("port", 53344)),
+                            "nat": bool(wg_data.get("nat", True))
+                        }
+                    else:
+                        self.web_result["wg_server"] = {}
+
+                self._last_caching_time = now
+
+            # 4. 실시간 수집 데이터 (유선 포트, 무선 상태, LED, WAN 링크 상태는 매 주기마다 필수 조회)
             ports = await self._async_service_json("port/link/status")
             if ports.get("result"):
                 self.web_result["ports"] = ports["result"]
@@ -256,89 +344,13 @@ class IPTimeAPI:
                     "client": wireless_client.get("result", []),
                 }
 
-            geoip = await self._async_service_json("geoip/get")
-            if geoip.get("result"):
-                self.web_result.setdefault("security", {})["geoip"] = geoip["result"]
-                self.web_result["geoip"] = geoip["result"]
-
-            geoip_pcount = await self._async_service_json("geoip/blocked/pcount")
-            if geoip_pcount.get("result") is not None:
-                blocked_result = geoip_pcount.get("result")
-                blocked_count = None
-                if isinstance(blocked_result, dict):
-                    if "total" in blocked_result and blocked_result["total"] is not None:
-                        blocked_count = blocked_result["total"]
-                    elif "count" in blocked_result and blocked_result["count"] is not None:
-                        blocked_count = blocked_result["count"]
-                    elif "list" in blocked_result and isinstance(blocked_result["list"], list):
-                        blocked_count = len(blocked_result["list"])
-                elif isinstance(blocked_result, list):
-                    blocked_count = len(blocked_result)
-                elif isinstance(blocked_result, (int, float)):
-                    blocked_count = int(blocked_result)
-                if blocked_count is not None:
-                    self.web_result["geoip_blocked_pcount"] = blocked_count
-
-            accesslist = await self._async_service_json("acl/config")
-            if accesslist.get("result"):
-                self.web_result.setdefault("security", {})["accesslist"] = accesslist["result"]
-                self.web_result["acl"] = accesslist["result"]
-
-            dos_config = await self._async_service_json("dos/config")
-            if dos_config.get("result"):
-                self.web_result["security_dos"] = dos_config["result"]
-
-            # sysmisc 설정 정보 수집 (연결될 파일: switch.py, select.py, button.py)
             led_config = await self._async_service_json("led/config")
             if led_config.get("result") is not None:
                 self.web_result["led_config"] = led_config["result"]
 
-            upnp_config = await self._async_service_json("upnp/config")
-            if upnp_config.get("result") is not None:
-                self.web_result["upnp_config"] = upnp_config["result"]
-
-            # NAT 고급 및 트래픽 설정 수집 (포트포워드, UPnP 릴레이)
-            portforward_config = await self._async_service_json("portforward/config")
-            if portforward_config.get("result") is not None:
-                self.web_result["portforward_config"] = portforward_config["result"]
-
-            upnp_relay = await self._async_service_json("upnp/relay")
-            if upnp_relay.get("result") is not None:
-                self.web_result["upnp_relay"] = upnp_relay.get("result")
-
-
-
-            reboot_timer = await self._async_service_json("reboot/timer")
-            if reboot_timer.get("result") is not None:
-                self.web_result["reboot_timer"] = reboot_timer["result"]
-
             wan_heartbeat = await self._async_service_json("wan/heartbeat")
             if wan_heartbeat.get("result") is not None:
                 self.web_result["wan_heartbeat"] = wan_heartbeat["result"]
-
-
-
-
-
-            # WireGuard 서버 정보 수집 (연결될 파일: switch.py)
-            wg_server = await self._async_service_json("wg/server/show")
-            if wg_server.get("result") is not None:
-                wg_data = wg_server["result"]
-                if isinstance(wg_data, dict):
-                    # 실물 펌웨어 응답 규격(active, address, port, nat)을 홈어시스턴트 규격(run, ip, subnet, port, nat)으로 표준 맵핑 변환
-                    self.web_result["wg_server"] = {
-                        "run": bool(wg_data.get("active", False)),
-                        "ip": wg_data.get("address", "10.0.21.1"),
-                        "subnet": "24",  # 실물 API 조회에서 subnet이 생략되는 경우 24로 고정 매핑
-                        "port": int(wg_data.get("port", 53344)),
-                        "nat": bool(wg_data.get("nat", True))
-                    }
-                else:
-                    self.web_result["wg_server"] = {}
-
-            product_html = await self._async_request("GET", f"{self._url}/ui/port_setup")
-            product_match = re.search(r'PRODUCT:\s*"([^"]+)"', product_html)
-            self.web_result["model"] = _normalize_model_name(product_match.group(1) if product_match else None)
 
             uptime = None
             for candidate in (self.web_result.get("wan", {}), self.web_result.get("lan", {})):
@@ -363,6 +375,7 @@ class IPTimeAPI:
         if response.get("error"):
             _LOGGER.warning(f"무선 BSS 제어 실패: {response.get('error')}")
             return False
+        self._last_caching_time = 0.0 # 캐시 강제 만료
         return bool(response)
 
     async def async_set_web_wireless_band_enable(self, band: str, enable: bool, separated: Any = None, bss: Any = None) -> bool:
@@ -382,6 +395,7 @@ class IPTimeAPI:
         if response.get("error"):
             _LOGGER.warning(f"무선 band 제어 실패: {response.get('error')}")
             return False
+        self._last_caching_time = 0.0 # 캐시 강제 만료
         return bool(response)
 
     async def async_set_web_geoip_enable(self, enable: bool) -> bool:
@@ -392,6 +406,7 @@ class IPTimeAPI:
         if response.get("error"):
             _LOGGER.warning(f"GeoIP 제어 실패: {response.get('error')}")
             return False
+        self._last_caching_time = 0.0 # 캐시 강제 만료
         return bool(response)
 
     async def async_set_web_geoip_policy(self, policy: str) -> bool:
@@ -402,6 +417,7 @@ class IPTimeAPI:
         if response.get("error"):
             _LOGGER.warning(f"GeoIP policy 제어 실패: {response.get('error')}")
             return False
+        self._last_caching_time = 0.0 # 캐시 강제 만료
         return bool(response)
 
     async def async_set_web_accesslist_enable(self, enable: bool) -> bool:
@@ -420,7 +436,10 @@ class IPTimeAPI:
             port = wan1.get("open", {}).get("port", 80)
             params = {"ntag": "wan1", "open": {"flag": bool(enable), "port": port}}
             response = await self._async_service_json("acl/config", params)
-            return not response.get("error")
+            if not response.get("error"):
+                self._last_caching_time = 0.0 # 캐시 강제 만료
+                return True
+            return False
         return False
 
     async def async_set_security_switch(self, key: str, value: bool) -> bool:
@@ -428,25 +447,28 @@ class IPTimeAPI:
         if not self._beta_ui:
             return False
 
+        success = False
         if key in ["syn_flood", "smurf", "ip_source_routing", "ip_spoofing", "inbound_ping", "outbound_ping"]:
             params = {key: bool(value)}
             response = await self._async_service_json("dos/config", params)
-            return not response.get("error")
+            success = not response.get("error")
         
-        if key == "csrf":
+        elif key == "csrf":
             params = {"csrf": {"run": bool(value)}}
             response = await self._async_service_json("dos/config", params)
-            return not response.get("error")
+            success = not response.get("error")
             
-        if key == "arp_virus":
+        elif key == "arp_virus":
             pps = 5
             if "security_dos" in self.web_result and "arp_virus" in self.web_result["security_dos"]:
                 pps = self.web_result["security_dos"]["arp_virus"].get("pps", 5)
             params = {"arp_virus": {"run": bool(value), "pps": pps}}
             response = await self._async_service_json("dos/config", params)
-            return not response.get("error")
+            success = not response.get("error")
 
-        return False
+        if success:
+            self._last_caching_time = 0.0 # 캐시 강제 만료
+        return success
 
     async def async_set_web_led_config(self, mode: str, on_time: int = 22, off_time: int = 8) -> bool:
         # 요약: 나이트 LED 모드를 변경한다. (연결될 파일: select.py)
@@ -460,14 +482,20 @@ class IPTimeAPI:
             "commit": True
         }
         response = await self._async_service_json("led/config", params)
-        return not response.get("error")
+        if not response.get("error"):
+            self._last_caching_time = 0.0 # 캐시 강제 만료
+            return True
+        return False
 
     async def async_set_web_upnp_enable(self, enable: bool) -> bool:
         # UPnP 설정 (연결될 파일: switch.py)
         if not self._beta_ui:
             return False
         response = await self._async_service_json("upnp/config", bool(enable))
-        return not response.get("error")
+        if not response.get("error"):
+            self._last_caching_time = 0.0 # 캐시 강제 만료
+            return True
+        return False
 
     async def async_set_web_reboot_timer(self, run: bool, hour: int = 4, min_time: int = 0, days: List[str] = ["Fri"]) -> bool:
         # 자동 재시작 설정 (연결될 파일: switch.py)
@@ -480,7 +508,10 @@ class IPTimeAPI:
             "days": days
         }
         response = await self._async_service_json("reboot/timer", params)
-        return not response.get("error")
+        if not response.get("error"):
+            self._last_caching_time = 0.0 # 캐시 강제 만료
+            return True
+        return False
 
     async def async_set_web_wan_heartbeat(self, run: bool, interval: int = 3) -> bool:
         # WAN포트 끊김 시 재연결 설정 (연결될 파일: switch.py)
@@ -491,7 +522,10 @@ class IPTimeAPI:
             "interval": int(interval)
         }
         response = await self._async_service_json("wan/heartbeat", params)
-        return not response.get("error")
+        if not response.get("error"):
+            self._last_caching_time = 0.0 # 캐시 강제 만료
+            return True
+        return False
 
     async def login(self) -> bool:
         """로그인 시도 (구형 및 신형 주소 모두 대응)"""
@@ -803,6 +837,7 @@ class IPTimeAPI:
             response = await self._async_service_json("wg/server/set", params)
             if not response.get("error"):
                 _LOGGER.info(f"WireGuard 서버 실행 상태 변경 완료 (wg/server/set): active={run}")
+                self._last_caching_time = 0.0 # 캐시 강제 만료
                 return True
             else:
                 _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 중 API 오류: {response.get('error')}")
@@ -817,7 +852,10 @@ class IPTimeAPI:
         if not self._beta_ui:
             return False
         response = await self._async_service_json("portforward/config", {"enable": bool(enable)})
-        return not response.get("error")
+        if not response.get("error"):
+            self._last_caching_time = 0.0 # 캐시 강제 만료
+            return True
+        return False
 
     async def async_set_web_upnp_relay_enable(self, enable: bool) -> bool:
         """UPnP 포트포워드 릴레이 기능의 활성화 상태를 제어한다. (연결될 파일: switch.py)"""
@@ -826,7 +864,10 @@ class IPTimeAPI:
         if not self._beta_ui:
             return False
         response = await self._async_service_json("upnp/relay", bool(enable))
-        return not response.get("error")
+        if not response.get("error"):
+            self._last_caching_time = 0.0 # 캐시 강제 만료
+            return True
+        return False
 
 
 
