@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, Dict
 
@@ -9,6 +10,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, CONF_URL
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _get_geoip_data(web_data: Dict[str, Any]) -> Dict[str, Any]:
