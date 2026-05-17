@@ -3,7 +3,7 @@
 [🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.4.0-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.0.0-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 ipTIME 공유기를 위한 가장 강력하고 현대적인 Home Assistant 통합 구성요소입니다. 최신 베타 UI 모델부터 AX 시리즈 공유기까지 폭넓게 지원하며, 초고성능 **JSON-RPC (Web API) 전용 구조**로 완벽하게 탈바꿈하여 SNMP 의존성 없이 완벽한 모니터링과 제어를 제공합니다.
