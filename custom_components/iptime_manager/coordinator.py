@@ -38,10 +38,11 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             if not success:
                 _LOGGER.warning("공유기 Web 데이터 수집에 실패했습니다. (인증 또는 통신 오류)")
             
-            # 3. 데이터 통합 (Web + SNMP)
+            # 3. 데이터 통합 (Web + SNMP) - 지능형 스냅샷 격리 복사 처리 (이전-이후 데이터 불일치 및 알림 미작동 결함 방지)
+            import copy
             combined_data = {
-                "devices": self.api.result,
-                "web": self.api.web_result,
+                "devices": copy.deepcopy(self.api.result),
+                "web": copy.deepcopy(self.api.web_result),
             }
 
             # 4. 외부 인터넷(WAN) 연결 상태 변화 감지 및 HA 알림 생성
