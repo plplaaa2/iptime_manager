@@ -276,6 +276,101 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                     "notification_id": "iptime_csrf_security_on"
                                 }
                             )
+
+                    # F. 개별 DoS/보안 제어 옵션 비활성화 감지 및 설명 알림
+                    # 요약: 공유기의 개별 DoS 방어 및 보안 제어 옵션이 꺼졌을 때, 기능 설명과 보안 취약점 경고를 포함한 사용자 알림을 즉시 생성한다.
+                    # 연결될 파일: switch.py, api.py
+                    old_sec = old_web.get("security_dos", {}) if isinstance(old_web, dict) else {}
+                    new_sec = new_web.get("security_dos", {}) if isinstance(new_web, dict) else {}
+
+                    if old_sec and new_sec:
+                        def get_sec_value(sec_dict, key) -> bool:
+                            if not isinstance(sec_dict, dict):
+                                return False
+                            if key == "csrf":
+                                return bool(sec_dict.get("csrf", {}).get("run", False))
+                            if key == "arp_virus":
+                                return bool(sec_dict.get("arp_virus", {}).get("run", False))
+                            return bool(sec_dict.get(key, False))
+
+                        security_details = {
+                            "csrf": {
+                                "name": "CSRF 피싱 공격 방어 (CSRF Prevention)",
+                                "description": "사용자가 로그인한 상태에서 외부의 악성 피싱 사이트에 방문했을 때, 공유기 설정을 무단으로 위조 및 변경하려는 공격을 원천적으로 차단합니다.",
+                                "danger": "비활성화 시 가짜 웹사이트나 악성 광고 링크를 누르는 것만으로 공유기 관리 권한이 탈취되거나 DNS 주소가 조작되는 심각한 보안 피해를 입을 수 있습니다.",
+                                "notification_id": "iptime_security_csrf_off"
+                            },
+                            "arp_virus": {
+                                "name": "ARP 바이러스 방어 (ARP Virus Protection)",
+                                "description": "로컬 네트워크 상에서 타 기기의 MAC 주소로 위장해 통신 패킷을 도청하거나 가로채는 ARP Spoofing 및 바이러스성 악성 트래픽을 감지하여 차단합니다.",
+                                "danger": "비활성화 시 내부망에 감염된 기기가 존재할 경우, 다른 PC나 모바일 기기의 중요 개인정보와 금융 데이터 패킷이 쉽게 도청(스니핑)당할 우려가 있습니다.",
+                                "notification_id": "iptime_security_arp_virus_off"
+                            },
+                            "syn_flood": {
+                                "name": "SYN Flood 공격 방어 (SYN Flood Protection)",
+                                "description": "대량의 TCP SYN 패킷을 보내 공유기의 메모리와 자원을 고갈시켜 정상적인 인터넷 연결을 무력화시키는 서비스 거부(DoS) 공격을 효과적으로 방어합니다.",
+                                "danger": "비활성화 시 비정상적인 유입 트래픽 공격에 의해 공유기의 시스템 부하가 급증하여 인터넷 연결이 완전히 끊기거나 속도가 심하게 저하될 수 있습니다.",
+                                "notification_id": "iptime_security_syn_flood_off"
+                            },
+                            "smurf": {
+                                "name": "Smurf 디도스 방어 (Smurf Protection)",
+                                "description": "공유기의 IP로 발신인을 조작한 대량의 ICMP Echo 패킷을 전체 망에 뿌려 네트워크 대역폭과 자원을 고갈시키는 디도스(DDoS) 공격 기법을 차단합니다.",
+                                "danger": "비활성화 시 외부 유입 혹은 내부 기기로부터 발생하는 대용량 폭탄 트래픽 공격에 직격되어 공유기가 다운될 위험에 빠집니다.",
+                                "notification_id": "iptime_security_smurf_off"
+                            },
+                            "ip_source_routing": {
+                                "name": "IP 소스 라우팅 차단 (IP Source Routing Block)",
+                                "description": "패킷 송신자가 네트워크의 이동 경로(라우팅 경로)를 수동으로 제어하여 방화벽이나 내부 침입 탐지 시스템을 강제로 우회하지 못하도록 차단합니다.",
+                                "danger": "비활성화 시 공격자가 라우팅 소스를 가공하여 내부 보안 경계망을 쉽게 우회하고, 민감한 내부 네트워크 경로 정보를 스캔해 갈 위험이 있습니다.",
+                                "notification_id": "iptime_security_ip_source_routing_off"
+                            },
+                            "ip_spoofing": {
+                                "name": "IP 스푸핑 방어 (IP Spoofing Protection)",
+                                "description": "송신자 IP 주소를 로컬 내부망 주소로 가짜 위장하여 방화벽 필터를 속이고 내부망 접근을 시도하는 해킹용 불법 패킷을 탐지하여 거부합니다.",
+                                "danger": "비활성화 시 외부 해커가 내부망의 신뢰받는 기기 IP로 위장하여 공유기의 방화벽 통제망을 무사 통과해 공유기 시스템을 직접 제어할 가능성이 증가합니다.",
+                                "notification_id": "iptime_security_ip_spoofing_off"
+                            },
+                            "inbound_ping": {
+                                "name": "외부 Inbound Ping 응답 차단 (Block Inbound Ping)",
+                                "description": "인터넷상에서 공유기로 보내는 ICMP Ping(Echo Request) 요청에 대한 응답을 차단하여, 해커들의 대량 IP 자동 스캔 도구에 공유기 노출을 원천 회피합니다.",
+                                "danger": "비활성화 시 외부 스캔 툴에 공유기가 가동 중인 사실이 그대로 포착되어, 디도스 및 각종 포트 타겟형 침투 해킹의 제1 타겟으로 지정되기 쉬워집니다.",
+                                "notification_id": "iptime_security_inbound_ping_off"
+                            },
+                            "outbound_ping": {
+                                "name": "내부 Outbound Ping 송신 차단 (Block Outbound Ping)",
+                                "description": "내부 로컬 기기에서 외부 서버 등으로 전송되는 무분별한 Ping(ICMP) 트래픽 발생을 강제로 차단하고 통제하는 옵션입니다.",
+                                "danger": "비활성화 시 내부망에 잠입한 악성코드가 외부 명령제어(C&C) 서버로 신호를 보내 정찰을 수행하거나 대량의 스캔 트래픽을 유출시키는 행위를 제어하기 어려워집니다.",
+                                "notification_id": "iptime_security_outbound_ping_off"
+                            }
+                        }
+
+                        for key, info in security_details.items():
+                            # csrf가 꺼졌을 때, 만약 원격 관리가 켜진 고위험 상황이라면 기존의 심각한 경고 알림(iptime_csrf_disabled_danger)만 띄우고,
+                            # 일반적인 상황(원격 관리가 꺼져 있는 상태)에서만 일반 알림을 생성한다.
+                            if key == "csrf" and new_acl_flag:
+                                continue
+
+                            old_val = get_sec_value(old_sec, key)
+                            new_val = get_sec_value(new_sec, key)
+
+                            if old_val and not new_val:
+                                _LOGGER.warning(f"보안 옵션 비활성화 감지: {info['name']} - 경고 알림 생성")
+                                await self.hass.services.async_call(
+                                    "persistent_notification",
+                                    "create",
+                                    {
+                                        "title": f"⚠️ 보안 기능 비활성화 경고: {info['name']}",
+                                        "message": (
+                                            f"ipTIME 공유기({self.entry.data.get(CONF_URL)})의 **{info['name']}** 보안 옵션이 꺼졌습니다(Off).\n\n"
+                                            f"**[어떤 기능인가요?]**\n"
+                                            f"{info['description']}\n\n"
+                                            f"**[비활성화 시 위험성]**\n"
+                                            f"🔴 {info['danger']}\n\n"
+                                            f"의도한 변경이 아니라면, 보안 강화를 위해 공유기 설정에서 즉시 해당 기능을 다시 활성화(On)하시는 것을 강력히 권장합니다."
+                                        ),
+                                        "notification_id": info["notification_id"]
+                                    }
+                                )
                 except Exception as ex:
                     _LOGGER.error(f"WAN 연결 상태 변화 판단 중 오류 발생: {ex}")
 
