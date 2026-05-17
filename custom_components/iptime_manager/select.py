@@ -103,6 +103,23 @@ class IPTimeGeoIPSelect(CoordinatorEntity, SelectEntity):
             await self.coordinator.api.async_set_web_geoip_policy("off")
             await self.coordinator.api.async_set_web_geoip_enable(False)
         else:
+            # 락아웃(Lockout) 방지 지능형 안전 장치: Country Allow(accept) 선택 시 한국('kr')이 누락된 경우 자동 추가
+            if policy == "accept":
+                web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+                geoip = _get_geoip_data(web_data)
+                accept_list = geoip.get("accept_list", [])
+                if not isinstance(accept_list, list):
+                    accept_list = []
+                
+                # 'kr'이 없으면 추가 등록 시도
+                if "kr" not in [str(c).lower() for c in accept_list]:
+                    _LOGGER.info("GeoIP 정책을 국내 허용(Country Allow)으로 변경 시 한국('kr') 자동 등록 - 락아웃 예방")
+                    try:
+                        # geoip/policy/accept/add API를 호출해 'kr' 국가를 허용 리스트에 지능적으로 추가
+                        await self.coordinator.api._async_service_json("geoip/policy/accept/add", "kr")
+                    except Exception as err:
+                        _LOGGER.warning(f"GeoIP 한국('kr') 자동 등록 실패: {err}")
+
             await self.coordinator.api.async_set_web_geoip_enable(enable)
             await self.coordinator.api.async_set_web_geoip_policy(policy)
         await self.coordinator.async_request_refresh()

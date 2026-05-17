@@ -311,6 +311,10 @@ class IPTimeAPI:
                 if reboot_timer.get("result") is not None:
                     self.web_result["reboot_timer"] = reboot_timer["result"]
 
+                nat_config = await self._async_service_json("nat/config")
+                if nat_config.get("result") is not None:
+                    self.web_result["nat_config"] = nat_config["result"]
+
                 wg_server = await self._async_service_json("wg/server/show")
                 if wg_server.get("result") is not None:
                     wg_data = wg_server["result"]
@@ -864,6 +868,18 @@ class IPTimeAPI:
         if not self._beta_ui:
             return False
         response = await self._async_service_json("upnp/relay", bool(enable))
+        if not response.get("error"):
+            self._last_caching_time = 0.0 # 캐시 강제 만료
+            return True
+        return False
+
+    async def async_set_web_nat_config(self, enable: bool) -> bool:
+        """인터넷 연결 유지(NAT) 설정을 제어한다. (연결될 파일: switch.py)"""
+        # 요약: 인터넷 연결 유지(NAT) 설정의 활성화 여부를 제어한다.
+        # 연결 파일: switch.py
+        if not self._beta_ui:
+            return False
+        response = await self._async_service_json("nat/config", bool(enable))
         if not response.get("error"):
             self._last_caching_time = 0.0 # 캐시 강제 만료
             return True
