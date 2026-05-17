@@ -76,7 +76,7 @@ class IPTimeGeoIPSelect(CoordinatorEntity, SelectEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_geoip_policy"
-        self._attr_name = f"ipTIME GeoIP Policy ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"GeoIP Policy ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:earth"
 
     @property
@@ -128,7 +128,7 @@ class IPTimeNightLEDSelect(CoordinatorEntity, SelectEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_night_led"
-        self._attr_name = f"ipTIME Night LED Mode ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"Night LED Mode ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:led-off"
 
     @property
@@ -202,7 +202,7 @@ class IPTimeRebootDaySelect(CoordinatorEntity, SelectEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_reboot_day"
-        self._attr_name = f"ipTIME Auto Reboot Day ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"Auto Reboot Day ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:calendar-week"
 
     @property
@@ -281,7 +281,7 @@ class IPTimeIPTVSelect(CoordinatorEntity, SelectEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_iptv_mode"
-        self._attr_name = f"ipTIME IPTV Mode ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"IPTV Mode ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:television-box"
 
     @property

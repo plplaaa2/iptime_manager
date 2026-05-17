@@ -184,7 +184,7 @@ class IPTimeWifiSwitch(CoordinatorEntity, SwitchEntity):
         band_key = _web_wireless_bss_band_key(bss_info)
         band_label = _web_wireless_band_label(band_key)
         
-        self._attr_name = f"ipTIME WiFi {band_label} - {ssid} ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"WiFi {band_label} - {ssid} ({entry.data.get(CONF_URL)})"
 
     @property
     def is_on(self) -> bool:
@@ -244,7 +244,7 @@ class IPTimeGeoIPSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_security_geoip"
-        self._attr_name = f"ipTIME GeoIP ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"GeoIP ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:web"
 
     @property
@@ -291,7 +291,7 @@ class IPTimeAccessListSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_security_accesslist"
-        self._attr_name = f"ipTIME Access List ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"Access List ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:shield-key"
 
     @property
@@ -345,7 +345,7 @@ class IPTimeSecuritySwitch(CoordinatorEntity, SwitchEntity):
         self._entry = entry
         self._key = key
         self._attr_unique_id = f"{entry.entry_id}_security_{key}"
-        self._attr_name = f"ipTIME {name} ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"{name} ({entry.data.get(CONF_URL)})"
         self._attr_icon = icon
 
     @property
@@ -388,7 +388,7 @@ class IPTimeUPnPSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_sysmisc_upnp"
-        self._attr_name = f"ipTIME UPnP ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"UPnP ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:router-wireless"
 
     @property
@@ -424,7 +424,7 @@ class IPTimeAutoRebootSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_sysmisc_auto_reboot"
-        self._attr_name = f"ipTIME Auto Reboot ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"Auto Reboot ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:calendar-clock"
 
     @property
@@ -481,7 +481,7 @@ class IPTimeKeepConnectSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_sysmisc_keep_connection"
-        self._attr_name = f"ipTIME Keep Connection ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"Keep Connection ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:link-variant"
 
     @property
@@ -517,7 +517,7 @@ class IPTimeWanReconnectSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_sysmisc_wan_reconnect"
-        self._attr_name = f"ipTIME WAN Reconnect ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"WAN Reconnect ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:connection"
 
     @property
@@ -568,7 +568,7 @@ class IPTimeWireGuardServerSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_wg_server_run"
-        self._attr_name = f"ipTIME WireGuard Server ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"WireGuard Server ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:shield-key"
 
     @property

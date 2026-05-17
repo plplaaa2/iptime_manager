@@ -258,7 +258,7 @@ class IPTimeSystemSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self.entity_description = description
         self._entry = entry
-        self._attr_name = f"ipTIME {description.name} ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"{description.name} ({entry.data.get(CONF_URL)})"
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
 
     @property
@@ -301,7 +301,7 @@ class IPTimeWifiSensor(CoordinatorEntity, SensorEntity):
         band_tag = f"{_web_wireless_band_label(band_key)} - {ssid}" if ssid else f"{_web_wireless_band_label(band_key)} - {idx}"
         ssid_key = _entity_key_part(ssid or idx)
 
-        self._attr_name = f"ipTIME WiFi {band_tag} ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"WiFi {band_tag} ({entry.data.get(CONF_URL)})"
         self._attr_unique_id = f"{entry.entry_id}_wifi_{band_key}_{ssid_key}"
         self._attr_icon = "mdi:wifi"
 

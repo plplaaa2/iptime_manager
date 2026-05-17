@@ -198,13 +198,13 @@ class IPTimeInterfaceBinarySensor(CoordinatorEntity, BinarySensorEntity):
                 "6g-2": "6G-2",
                 "mlo": "MLO",
             }.get(band_key, band_key or "Unknown")
-            self._attr_name = f"ipTIME WiFi {band_label} Status ({entry.data.get(CONF_URL)})"
+            self._attr_name = f"WiFi {band_label} Status ({entry.data.get(CONF_URL)})"
             self._attr_unique_id = f"{entry.entry_id}_wifi_{_entity_key_part(band_key)}_status"
             self._attr_device_class = None
         else:
             port_type = str(self._port_info.get("type", "port")).upper()
             port_num = self._port_info.get("port")
-            self._attr_name = f"ipTIME {_display_port_name(port_type, port_num)} Status ({entry.data.get(CONF_URL)})"
+            self._attr_name = f"{_display_port_name(port_type, port_num)} Status ({entry.data.get(CONF_URL)})"
             self._attr_unique_id = f"{entry.entry_id}_{_normalize_port_key(port_type, port_num)}_status"
             self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 

@@ -32,7 +32,7 @@ class IPTimeRebootButton(CoordinatorEntity, ButtonEntity):
             name="Reboot Router",
             icon="mdi:restart",
         )
-        self._attr_name = f"ipTIME Reboot ({entry.data.get(CONF_URL)})"
+        self._attr_name = f"Reboot ({entry.data.get(CONF_URL)})"
         self._attr_unique_id = f"{entry.entry_id}_reboot"
 
     async def async_press(self) -> None:
