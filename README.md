@@ -90,9 +90,16 @@ Click the button above to add this repository directly inside HACS, install **ip
 2. Paste `https://github.com/plplaaa2/iptime_manager` and select **Integration** category
 3. Install **ipTIME Manager** and restart Home Assistant
 
-### 3. Integration Setup (Config Flow)
-* **No SNMP configuration is required** for any core functionality.
-* Simply enter your router's **Web administrator login credentials**, and the integration will immediately populate all entities!
+### 3. Integration Setup (Config Flow) & Configuration Tuning (Options Flow)
+* **No SNMP Required**: SNMP activation or complex MIB/OID matching is completely unnecessary.
+* **Initial Setup (Config Flow)**:
+  * **Router URL**: Gateway IP address (e.g., `http://192.168.0.1`. If using a non-standard remote admin port, ensure it is appended: `http://192.168.0.1:8080`).
+  * **Credentials**: Router web administrator login ID and password.
+  * **Scan Interval**: Frequency of presence scanning in seconds (default **5 seconds**. Lower values like 1–3s are fully supported).
+* **Tweak Parameters Later (Options Flow)**: Hit the `Configure` button on the integration card anytime to tune details:
+  * **Presence Target Device Mapping**: Select from a dynamically discovered list of wireless clients to spawn dedicated `device_tracker` entities.
+  * **Delay before not_home (consider_home)**: Grace wait time (seconds) to prevent presence flipping/flapping during brief Wi-Fi dropouts (default **180 seconds** recommended).
+  * **RSSI Cutoff Threshold (RSSI Limit)**: Standard RSSI signal power level (dBm) below which a client is declared Away (default **-90 dBm**).
 
 ---
 
