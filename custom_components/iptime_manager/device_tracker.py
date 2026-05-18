@@ -19,6 +19,8 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
     """기기 추적기 설정. (연결될 파일: const.py, coordinator.py)"""
+    from homeassistant.helpers import entity_registry as er
+
     coordinator = hass.data[DOMAIN][entry.entry_id]
     device_map = entry.data.get("devices", {})
     
@@ -26,6 +28,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     tracked_macs = entry.options.get(CONF_TARGET)
     if tracked_macs is None:
         tracked_macs = entry.data.get(CONF_TARGET, list(device_map.keys()))
+
+    # 옵션 변경 등으로 제외된 엔티티가 있으면 엔티티 레지스트리에서 완전히 제거
+    tracked_macs_clean = {m.replace(":", "").replace("-", "").lower() for m in tracked_macs}
+    entity_registry = er.async_get(hass)
+    registered_entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
+    
+    prefix = f"{entry.entry_id}_"
+    for entity in registered_entities:
+        if entity.domain == "device_tracker" and entity.unique_id.startswith(prefix):
+            mac = entity.unique_id[len(prefix):].replace(":", "").replace("-", "").lower()
+            if mac not in tracked_macs_clean:
+                _LOGGER.info("추적 제외된 ipTIME 재실센서 엔티티 제거: %s (MAC: %s)", entity.entity_id, mac)
+                entity_registry.async_remove(entity.entity_id)
 
     _LOGGER.debug("ipTIME Device Tracker 설정 시작: %s 기기 중 %s 기기 추적", len(device_map), len(tracked_macs))
     

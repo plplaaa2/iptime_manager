@@ -25,8 +25,9 @@ The most powerful and modern Home Assistant integration for EFM ipTIME routers. 
 * **Unified Entities & Optimization**: Replaced redundant, slow-updating Wi-Fi binary sensors with unified, high-performance wireless switches (`switch`).
 * **Granular SSID Control**: A single switch entity manages and displays the active state, frequency band, SSID name, security method, and visibility (hidden/visible). Toggles operate on a per-SSID (BSS) level rather than the entire band, preventing router wireless chipset restarts and keeping other IoT devices connected seamlessly.
 
-### 🔒 3rd-Gen IUX Security & Smart GeoIP Lockout Safeguard
+### 🔒 3rd-Gen IUX Security Control & Smart GeoIP Safeguard
 * **8 Dedicated Security Switches**: Reverse-engineered 3rd-generation responsive IUX security APIs to control Remote Admin port access, CSRF security block, ARP Virus Shield, Inbound Ping block, and more.
+* **Real-Time Security Option Disabled Alerts**: Actively monitors when any of the 8 security options (CSRF, ARP Virus, SYN Flood, Smurf, IP Source Routing, IP Spoofing, Inbound/Outbound Ping) is turned off. Through Home Assistant's `persistent_notification` system, it instantly displays a persistent alert containing **a detailed Korean explanation of the security option's purpose** and **the specific vulnerability risks of disabling it**, preventing accidental or unguided disabling of critical security options by users.
 * **Lockout Disaster Prevention**: Includes GeoIP total blocked count (`sensor`) and policy selection (`select`). When switching to Country Allow mode, if the allow list is empty or missing, the integration **automatically force-injects the South Korea ('kr') code**, preventing catastrophic lockouts where you accidentally block your own administrative access.
 
 ### 🔌 Advanced NAT Settings (Port Forwarding & UPnP Relay)
