@@ -39,3 +39,5 @@ CONF_CONSIDER_HOME = 'consider_home'
 DEFAULT_CONSIDER_HOME = 180 # 기본값 3분 (초 단위)
 CONF_RSSI_LIMIT = 'rssi_limit'
 DEFAULT_RSSI_LIMIT = -81
+CONF_SCAN_INTERVAL = 'scan_interval'
+DEFAULT_SCAN_INTERVAL = 5 # 기본값 5초 (초 단위)
