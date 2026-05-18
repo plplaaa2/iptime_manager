@@ -3,7 +3,7 @@
 [🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.0.1-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.0.2-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 The most powerful and modern Home Assistant integration for EFM ipTIME routers. Supporting all models featuring the **3rd-generation responsive IUX (including AX-series)** and the latest Flutter-based Beta UI, it has transitioned completely to a high-performance **JSON-RPC (Web API) architecture**, delivering flawless real-time monitoring and robust system control without requiring any complex SNMP configuration.
@@ -44,6 +44,12 @@ The most powerful and modern Home Assistant integration for EFM ipTIME routers. 
 ### 👥 Smart Presence Detection & Clean Entity Deletion
 * **User-Friendly Device Mapping Retention**: Even if you uncheck all devices in the options flow, their custom names and MAC addresses are safely preserved. This allows you to easily reactivate them later by simply checking the box without having to re-enter MAC addresses or custom names.
 * **Flawless Entity Cleanup**: Unchecked presence sensors are immediately removed from Home Assistant's **Entity Registry** (`async_remove`), ensuring they do not clutter your dashboard with "Restored" or "Unavailable" error states.
+
+### ⏱️ Dual-Interval Intelligent Polling & Custom scan_interval
+* **Custom Scanning Frequency**: You can adjust the presence scanner interval (`scan_interval`) to any custom value (seconds) directly within the initial setup or the options flow interface.
+* **Dual-Interval Overhead Isolation (Safety Throttling)**: Even if you set the presence tracking to update extremely fast (e.g., every 3 seconds), the integration automatically throttles the heavier system/port/Wi-Fi web queries to a **minimum 5-second interval**. This prevents router CPU lockups while maintaining swift presence reaction.
+* **Zero-Delay Control Mutation Inbound**: The 5-second throttling is intelligently bypassed whenever you perform a dashboard control toggle (e.g., SSID switch, LED night-mode select). The system executes the mutation instantly and refreshes the sensor states without any delay, guaranteeing seamless real-time feedback.
+* **Low-End Router Safety Guard**: Prevents query traffic overload on low-end or older models, ensuring complete network reliability across all supported EFM ipTIME router hardware.
 
 ---
 
