@@ -249,8 +249,13 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
         )
 
     def _save_config(self) -> FlowResult:
-        """최종 설정 저장."""
+        """최종 설정 저장 (Data와 Options의 원자적 업데이트로 레이스 컨디션 해결)."""
         new_data = dict(self._config_entry.data)
         new_data["devices"] = self.device_map
-        self.hass.config_entries.async_update_entry(self._config_entry, data=new_data)
+        # data와 options를 동시에 원자적(Atomic)으로 업데이트하여 리로드 시점의 레이스 컨디션을 완벽히 예방합니다.
+        self.hass.config_entries.async_update_entry(
+            self._config_entry, 
+            data=new_data, 
+            options=self.temp_options
+        )
         return self.async_create_entry(title="", data=self.temp_options)
