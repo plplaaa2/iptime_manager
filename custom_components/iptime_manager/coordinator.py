@@ -30,7 +30,11 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         """주기적으로 API를 호출하여 최신 데이터를 가져옵니다."""
         try:
             # 1. 기기 추적 정보 (하프싱킹)
-            success = await self.api.async_update()
+            rssi_limit = self.entry.options.get(
+                CONF_RSSI_LIMIT,
+                self.entry.data.get(CONF_RSSI_LIMIT, DEFAULT_RSSI_LIMIT)
+            )
+            success = await self.api.async_update(rssi_limit=rssi_limit)
             
             # 2. Web 데이터 수집 (기본/필수)
             await self.api.async_get_web_data()
