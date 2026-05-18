@@ -62,6 +62,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if web_data.get("reboot_timer") is not None:
             entities.append(IPTimeRebootDaySelect(coordinator, entry))
             
+        # 무선 채널 제어 셀렉터 동적 생성
+        wireless = web_data.get("wireless", {})
+        bands = wireless.get("band", [])
+        if isinstance(bands, list):
+            for b in bands:
+                band_id = b.get("band")
+                if band_id:
+                    entities.append(IPTimeWifiChannelSelect(coordinator, entry, band_id))
 
             
 
@@ -314,6 +322,88 @@ class IPTimeRebootDaySelect(CoordinatorEntity, SelectEntity):
 
         await self.coordinator.api.async_set_web_reboot_timer(run, hour, min_time, target_days)
         await self.coordinator.async_request_refresh()
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        model = web_data.get("model", "ipTIME Router")
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": model,
+            "manufacturer": "EFM Networks",
+            "model": model,
+        }
+
+
+# 요약: 무선 채널 제어 셀렉터 (연결될 파일: api.py)
+class IPTimeWifiChannelSelect(CoordinatorEntity, SelectEntity):
+    """Wi-Fi Channel selector."""
+
+    def __init__(self, coordinator, entry, band: str) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._band = band
+        self._attr_unique_id = f"{entry.entry_id}_wifi_channel_{band}"
+        
+        # 대역 친화적 명칭 정규화
+        band_label = {
+            "2g": "2.4GHz",
+            "5g": "5GHz",
+            "5g-2": "5GHz-2",
+            "6g": "6GHz",
+            "6g-2": "6GHz-2",
+            "mlo": "MLO",
+        }.get(str(band).lower(), str(band).upper())
+
+        self._attr_name = f"Wi-Fi Channel {band_label} ({entry.data.get(CONF_URL)})"
+        self._attr_icon = "mdi:wifi-cog"
+        self._cached_options = ["auto"]
+        self._last_options_update = 0.0
+
+    @property
+    def current_option(self) -> str | None:
+        """현재 설정된 채널 반환."""
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        wireless = web_data.get("wireless", {})
+        bands = wireless.get("band", [])
+        if isinstance(bands, list):
+            for b in bands:
+                if str(b.get("band")).lower() == str(self._band).lower():
+                    ch = b.get("channel")
+                    if ch in (None, "", "0", "0.0"):
+                        return "auto"
+                    return str(ch)
+        return "auto"
+
+    @property
+    def options(self) -> list[str]:
+        """사용 가능한 채널 목록 반환 (API 부하 최소화를 위한 1시간 캐싱)."""
+        import time
+        now = time.time()
+        
+        # 1시간(3600초) 마다 또는 최초 진입 시 채널 목록을 공유기 API에서 새로 가져옴
+        if not self._cached_options or len(self._cached_options) <= 1 or (now - self._last_options_update) > 3600.0:
+            self.hass.async_create_task(self._async_update_options())
+            
+        return self._cached_options
+
+    async def _async_update_options(self) -> None:
+        """비동기식으로 채널 목록을 수집하여 캐시 갱신."""
+        import time
+        try:
+            channels = await self.coordinator.api.async_get_wireless_channel_list(self._band)
+            if channels and len(channels) > 0:
+                self._cached_options = channels
+                self._last_options_update = time.time()
+                self.async_write_ha_state()
+        except Exception as err:
+            _LOGGER.debug(f"Failed to update channel list for band {self._band}: {err}")
+
+    async def async_select_option(self, option: str) -> None:
+        """사용자가 채널 선택 시 공유기 채널 변경 실행."""
+        success = await self.coordinator.api.async_set_wireless_channel(self._band, option)
+        if success:
+            await self.coordinator.async_request_refresh()
 
     @property
     def device_info(self) -> dict[str, Any]:

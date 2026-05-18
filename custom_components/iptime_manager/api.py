@@ -338,12 +338,15 @@ class IPTimeAPI:
 
             wireless_info = await self._async_service_json("wireless/info")
             wireless_band = await self._async_service_json("wireless/band/info")
+            wireless_band_show = await self._async_service_json("wireless/band/show")
             wireless_bss = await self._async_service_json("wireless/bss/show")
             wireless_client = await self._async_service_json("wireless/client/show")
-            if wireless_info.get("result") or wireless_band.get("result") or wireless_bss.get("result"):
+            
+            band_data = wireless_band_show.get("result") or wireless_band.get("result") or []
+            if wireless_info.get("result") or band_data or wireless_bss.get("result"):
                 self.web_result["wireless"] = {
                     "info": wireless_info.get("result", []),
-                    "band": wireless_band.get("result", []),
+                    "band": band_data,
                     "bss": wireless_bss.get("result", []),
                     "client": wireless_client.get("result", []),
                 }
@@ -928,6 +931,75 @@ class IPTimeAPI:
         if not response.get("error"):
             self._last_caching_time = 0.0 # 캐시 강제 만료
             return True
+        return False
+
+    async def async_get_wireless_channel_list(self, band: str) -> List[str]:
+        """특정 무선 대역(band)에서 지원하는 채널 목록을 조회한다. (연결될 파일: select.py)"""
+        if not self._beta_ui:
+            return ["auto"]
+        
+        # 1차 시도: 단일 문자열 "2g", "5g" 등으로 전달
+        response = await self._async_service_json("wireless/channel/list", band)
+        
+        # 2차 시도: 만약 에러가 나거나 리스트가 안 오면 딕셔너리로 {"band": band} 전달
+        if response.get("error") or not isinstance(response.get("result"), list):
+            response = await self._async_service_json("wireless/channel/list", {"band": band})
+            
+        result = response.get("result")
+        if isinstance(result, list):
+            channels = []
+            for ch in result:
+                if isinstance(ch, dict):
+                    ch_val = ch.get("channel") or ch.get("value")
+                    if ch_val is not None:
+                        channels.append(str(ch_val))
+                else:
+                    channels.append(str(ch))
+            
+            # "auto" 혹은 "0" 정규화 및 수동 주입
+            clean_channels = []
+            for c in channels:
+                if c in ("0", "0.0", "auto", "Auto", "AUTO"):
+                    if "auto" not in clean_channels:
+                        clean_channels.append("auto")
+                else:
+                    clean_channels.append(c)
+            
+            if "auto" not in clean_channels:
+                clean_channels.insert(0, "auto")
+            return clean_channels
+        return ["auto"]
+
+    async def async_set_wireless_channel(self, band: str, channel: str) -> bool:
+        """특정 무선 대역의 채널을 변경한다. (연결될 파일: select.py)"""
+        if not self._beta_ui:
+            return False
+            
+        ch_val = "auto" if str(channel).lower() == "auto" else channel
+        
+        # 기존 무선 대역 정보가 있으면 상태 필드를 최대한 보존해서 호출
+        enable = True
+        if "wireless" in self.web_result and "band" in self.web_result["wireless"]:
+            for b in self.web_result["wireless"]["band"]:
+                if str(b.get("band")).lower() == str(band).lower():
+                    enable = bool(b.get("enable", True))
+                    break
+
+        params = {
+            "band": band,
+            "channel": ch_val,
+            "enable": enable,
+            "commit": True
+        }
+        
+        _LOGGER.info(f"Wi-Fi 채널 변경 요청: band={band}, channel={ch_val}")
+        response = await self._async_service_json("wireless/band/set", params)
+        if not response.get("error"):
+            self._last_caching_time = 0.0 # 캐시 강제 만료
+            return True
+        else:
+            _LOGGER.warning(f"Wi-Fi 채널 변경 중 API 오류: {response.get('error')}")
+            
         return False
 
 
