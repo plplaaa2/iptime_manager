@@ -76,6 +76,7 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_ID): str,
                 vol.Required(CONF_PASSWORD): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
                 vol.Optional(CONF_CONSIDER_HOME, default=DEFAULT_CONSIDER_HOME): int,
+                vol.Optional(CONF_RSSI_LIMIT, default=DEFAULT_RSSI_LIMIT): int,
             })
         )
 
@@ -117,6 +118,7 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_ID, default=self.temp_config.get(CONF_ID)): str,
                 vol.Required(CONF_PASSWORD, default=self.temp_config.get(CONF_PASSWORD)): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
                 vol.Optional(CONF_CONSIDER_HOME, default=self.temp_config.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)): int,
+                vol.Optional(CONF_RSSI_LIMIT, default=self.temp_config.get(CONF_RSSI_LIMIT, DEFAULT_RSSI_LIMIT)): int,
             }),
             errors=errors
         )
@@ -163,6 +165,7 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
             self.temp_options = {
                 CONF_CONSIDER_HOME: user_input[CONF_CONSIDER_HOME],
                 CONF_TARGET: selected,
+                CONF_RSSI_LIMIT: user_input[CONF_RSSI_LIMIT],
             }
             
             if user_input.get("add_manual"):
@@ -193,11 +196,17 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
             list(self.device_map.keys())
         )
 
+        current_rssi_limit = self._config_entry.options.get(
+            CONF_RSSI_LIMIT,
+            self._config_entry.data.get(CONF_RSSI_LIMIT, DEFAULT_RSSI_LIMIT)
+        )
+
         return self.async_show_form(
             step_id="init", 
             data_schema=vol.Schema({
                 vol.Optional(CONF_TARGET, default=current_targets): cv.multi_select(options),
                 vol.Required(CONF_CONSIDER_HOME, default=current_timeout): int,
+                vol.Optional(CONF_RSSI_LIMIT, default=current_rssi_limit): int,
                 vol.Optional("add_manual", default=False): bool,
             })
         )
@@ -205,7 +214,8 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_add_manual(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """수동으로 MAC 주소 추가."""
         if user_input is not None:
-            mac = user_input[CONF_MAC].replace(":", "").replace("-", "").lower()
+            # 입력 값의 공백, 세미콜론, 콜론, 대시 등 잘못된 기호를 전부 전처리하여 강건성 확보
+            mac = str(user_input[CONF_MAC] or "").strip().replace(":", "").replace("-", "").replace(";", "").replace(" ", "").lower()
             if mac:
                 self.new_macs.append(mac)
                 return await self.async_step_name_new_devices()

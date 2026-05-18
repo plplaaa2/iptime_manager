@@ -141,7 +141,7 @@ class IPTimeAPI:
             _LOGGER.debug(f"서비스 호출 실패 ({method}): {err}")
             return {}
 
-    async def async_update(self) -> bool:
+    async def async_update(self, rssi_limit: int = DEFAULT_RSSI_LIMIT) -> bool:
         """데이터 업데이트 메인 로직 (안정화)."""
         # 1. 세션이 없으면 로그인 시도
         if not self.efm_session_id:
@@ -163,12 +163,12 @@ class IPTimeAPI:
         # 2. 데이터 수집
         if self._beta_ui:
             await asyncio.sleep(1)
-            self.result = await self.beta_ui_wlan_check()
+            self.result = await self.beta_ui_wlan_check(rssi_limit=rssi_limit)
             await self.session_update_beta_ui()
         elif self._ismobile:
-            self.result = await self.m_wlan_check()
+            self.result = await self.m_wlan_check(rssi_limit=rssi_limit)
         else:
-            self.result = await self.wlan_check()
+            self.result = await self.wlan_check(rssi_limit=rssi_limit)
         
         if len(self.result) > 1:
             first_mac = next(iter(self.result.keys())) if self.result else "None"
@@ -686,24 +686,24 @@ class IPTimeAPI:
         except Exception: pass
         return self._ismesh
 
-    async def wlan_check(self) -> Dict:
+    async def wlan_check(self, rssi_limit: int = DEFAULT_RSSI_LIMIT) -> Dict:
         result_dict = {"session": True}
         for band, urn in [("2.4GHz", WLAN_2G_URN), ("5GHz", WLAN_5G_URN)]:
             text = await self._async_request("GET", self._url + urn)
             result_dict.update(self.device_parsing(_extract_table_rows(text), band))
-        if self._ismesh: result_dict.update(await self.get_mesh_station())
+        if self._ismesh: result_dict.update(await self.get_mesh_station(rssi_limit=rssi_limit))
         return result_dict
 
-    async def m_wlan_check(self) -> Dict:
+    async def m_wlan_check(self, rssi_limit: int = DEFAULT_RSSI_LIMIT) -> Dict:
         result_dict = {"session": True}
         for band, urn in [("2.4GHz", M_WLAN_2G_URN), ("5GHz", M_WLAN_5G_URN)]:
             text = await self._async_request("GET", self._url + urn)
             try: result_dict.update(self.json_parsing(loads(text), band))
             except Exception: continue
-        if self._ismesh: result_dict.update(await self.get_mesh_station())
+        if self._ismesh: result_dict.update(await self.get_mesh_station(rssi_limit=rssi_limit))
         return result_dict
 
-    async def beta_ui_wlan_check(self) -> Dict:
+    async def beta_ui_wlan_check(self, rssi_limit: int = DEFAULT_RSSI_LIMIT) -> Dict:
         """베타 UI 기기 목록 조회 (수동 쿠키 주입)."""
         url = f"{self._url}{BETA_SERVICE_URN}"
         data = {"method":"network/interface/lan/stations"}
@@ -717,7 +717,7 @@ class IPTimeAPI:
                 res_json = await response.json()
                 if res_json and res_json.get('result'):
                     res = self.beta_ui_device_parsing(res_json['result'])
-                    if self._ismesh: res.update(await self.get_mesh_station())
+                    if self._ismesh: res.update(await self.get_mesh_station(rssi_limit=rssi_limit))
                     res["session"] = True
                     return res
         except Exception as err:
@@ -779,21 +779,66 @@ class IPTimeAPI:
                     "stay_time": f"{device.get('day')}일 {device.get('hour')}시간 {device.get('min')}분 {device.get('sec')}초", "state": "home"}
         return result_dict
 
-    async def get_mesh_station(self) -> Dict:
+    async def get_mesh_station(self, rssi_limit: int = DEFAULT_RSSI_LIMIT) -> Dict:
+        """EasyMesh 기기 목록 조회 및 파싱 (예외 격리 및 RSSI 임계값 유기적 조절)."""
         text = await self._async_request("GET", f"{self._url}{MESH_STATION_URN}")
         res = {}
+        
         try:
-            stations = loads(text).get("station", [])
-            for s in stations:
-                if s.get("connection") not in ["Unknown", "WIRED"]:
-                    mac = s["mac"].strip().replace(":", "").replace("-", "").lower()
-                    td = timedelta(seconds=s.get("timestamp", 0) - s.get("connected_ts", 0))
-                    res[mac] = {
-                        "ip": s.get("ip", "N/A"), "band": s.get("mode", "Unknown"),
-                        "stay_time": f"{td.days}일 {td.seconds//3600}시간 {(td.seconds//60)%60}분 {td.seconds%60}초",
-                        "rssi": s.get("rssi"), "state": "home" if s.get("rssi", 0) >= RSS_LIMIT else "not_home"
-                    }
-        except Exception: pass
+            data = loads(text)
+            stations = data.get("station", [])
+        except Exception as err:
+            _LOGGER.debug(f"Failed to parse EasyMesh topology JSON: {err}")
+            return res
+
+        for s in stations:
+            try:
+                if not isinstance(s, dict):
+                    continue
+                mac = s.get("mac")
+                if not mac:
+                    continue
+                mac = mac.strip().replace(":", "").replace("-", "").lower()
+                
+                # 'Unknown' 혹은 'WIRED' 연결 타입은 필터링 (무선 기기만 추적 대상)
+                connection = str(s.get("connection") or "").strip()
+                if connection in ["Unknown", "WIRED"]:
+                    continue
+
+                # 경과 시간(stay_time) 안전 계산
+                try:
+                    timestamp = int(s.get("timestamp", 0) or 0)
+                    connected_ts = int(s.get("connected_ts", 0) or 0)
+                    td_seconds = max(0, timestamp - connected_ts)
+                    td = timedelta(seconds=td_seconds)
+                except (ValueError, TypeError):
+                    td = timedelta(seconds=0)
+
+                stay_time_str = f"{td.days}일 {td.seconds//3600}시간 {(td.seconds//60)%60}분 {td.seconds%60}초"
+
+                # RSSI 안전 파싱
+                rssi_val = s.get("rssi")
+                rssi_int = 0
+                if rssi_val is not None:
+                    try:
+                        rssi_int = int(rssi_val)
+                    except (ValueError, TypeError):
+                        rssi_int = 0
+
+                # RSSI 한계값(rssi_limit)과 대조하여 재실 여부 판정
+                # 만약 사용자가 RSSI 차단을 끄고 싶다면 설정에서 -100 등의 값을 입력하면 됩니다.
+                state = "home" if rssi_val is None or rssi_int >= rssi_limit else "not_home"
+                
+                res[mac] = {
+                    "ip": s.get("ip", "N/A"),
+                    "band": s.get("mode", "Unknown"),
+                    "stay_time": stay_time_str,
+                    "rssi": rssi_int if rssi_val is not None else None,
+                    "state": state
+                }
+            except Exception as err:
+                _LOGGER.debug(f"Error parsing EasyMesh station {s.get('mac', 'unknown')}: {err}")
+                
         return res
 
     async def async_close(self) -> None:
