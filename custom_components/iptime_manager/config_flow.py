@@ -214,7 +214,8 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_add_manual(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """수동으로 MAC 주소 추가."""
         if user_input is not None:
-            mac = user_input[CONF_MAC].replace(":", "").replace("-", "").lower()
+            # 입력 값의 공백, 세미콜론, 콜론, 대시 등 잘못된 기호를 전부 전처리하여 강건성 확보
+            mac = str(user_input[CONF_MAC] or "").strip().replace(":", "").replace("-", "").replace(";", "").replace(" ", "").lower()
             if mac:
                 self.new_macs.append(mac)
                 return await self.async_step_name_new_devices()
