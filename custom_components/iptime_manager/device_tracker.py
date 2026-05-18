@@ -39,10 +39,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if entity.domain == "device_tracker" and entity.unique_id.startswith(prefix):
             mac = entity.unique_id[len(prefix):].replace(":", "").replace("-", "").lower()
             if mac not in tracked_macs_clean:
-                _LOGGER.info("추적 제외된 ipTIME 재실센서 엔티티 제거: %s (MAC: %s)", entity.entity_id, mac)
+                _LOGGER.info("Removing untracked ipTIME presence sensor entity: %s (MAC: %s)", entity.entity_id, mac)
                 entity_registry.async_remove(entity.entity_id)
 
-    _LOGGER.debug("ipTIME Device Tracker 설정 시작: %s 기기 중 %s 기기 추적", len(device_map), len(tracked_macs))
+    _LOGGER.debug("Starting ipTIME Device Tracker: tracking %s of %s devices", len(tracked_macs), len(device_map))
     
     entities = [
         IPTimeDeviceEntity(coordinator, entry, mac, device_map[mac])
@@ -63,7 +63,7 @@ class IPTimeDeviceEntity(CoordinatorEntity, ScannerEntity):
         self._attr_unique_id = f"{entry.entry_id}_{mac}"
         self._entry = entry
         self._last_seen: Any = None
-        _LOGGER.debug("[%s] 엔티티 초기화 완료 (매칭 MAC: %s)", name, self._mac)
+        _LOGGER.debug("[%s] Entity initialization completed (matching MAC: %s)", name, self._mac)
 
     @property
     def is_connected(self) -> bool:
@@ -83,7 +83,7 @@ class IPTimeDeviceEntity(CoordinatorEntity, ScannerEntity):
                     break
         
         is_now_home = device is not None and device.get("state") == "home"
-        _LOGGER.debug(f"ipTIME 트래커 [{self._attr_name}] 매칭 시도 (MAC: {self._mac}): {'성공' if device else '실패'}")
+        _LOGGER.debug(f"ipTIME tracker [{self._attr_name}] matching attempt (MAC: {self._mac}): {'success' if device else 'failed'}")
         
         if is_now_home:
             self._last_seen = dt_util.utcnow()

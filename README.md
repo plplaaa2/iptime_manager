@@ -3,7 +3,7 @@
 [🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.0.0-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.0.1-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 The most powerful and modern Home Assistant integration for EFM ipTIME routers. Supporting all models featuring the **3rd-generation responsive IUX (including AX-series)** and the latest Flutter-based Beta UI, it has transitioned completely to a high-performance **JSON-RPC (Web API) architecture**, delivering flawless real-time monitoring and robust system control without requiring any complex SNMP configuration.
@@ -41,12 +41,17 @@ The most powerful and modern Home Assistant integration for EFM ipTIME routers. 
 * **System Settings Selectors**: Toggles Night LED modes (Disabled, Scheduled, Always Off) via `select.sysmisc_night_led` and automated reboot days via `select.auto_reboot_day`.
 * **Memory Retention Mechanism**: When switching LED modes back to Scheduled or toggling the Auto Reboot switches, the integration remembers your custom night-LED hours and early morning reboot times (`Hour`/`Minute`) inside instance variables, preventing the router from reverting them to default values.
 
+### 👥 Smart Presence Detection & Clean Entity Deletion
+* **User-Friendly Device Mapping Retention**: Even if you uncheck all devices in the options flow, their custom names and MAC addresses are safely preserved. This allows you to easily reactivate them later by simply checking the box without having to re-enter MAC addresses or custom names.
+* **Flawless Entity Cleanup**: Unchecked presence sensors are immediately removed from Home Assistant's **Entity Registry** (`async_remove`), ensuring they do not clutter your dashboard with "Restored" or "Unavailable" error states.
+
 ---
 
 ## 📊 Entity Summary
 
 | Platform | Features & Entities |
 | :--- | :--- |
+| **`device_tracker`** | Real-time presence detection (Home/Away) for selected devices by MAC address |
 | **`sensor`** | Router Uptime, Model Name, Firmware Version (with latest update comparison), WAN IP & MAC Address, Primary/Secondary DNS, GeoIP Cumulative Blocked Count, etc. |
 | **`binary_sensor`** | WAN & LAN 1-4 Physical Link Status (`connectivity` device class supported) |
 | **`switch`** | SSID-level Wi-Fi toggles, WireGuard Server toggle, Auto-Reboot toggle, Port Forwarding toggle, UPnP Relay toggle, **[8 Security Controls]** Remote Admin/CSRF/ARP Virus/Ping Block, etc. |

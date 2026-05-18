@@ -28,6 +28,102 @@
           "name": "Name"
         }
       }
+    },
+    "notifications": {
+      "wan_port_disconnect": {
+        "title": "WAN External Port Disconnected",
+        "message": "The WAN port external Internet cable of the ipTIME router ({url}) is unplugged or the modem connection is lost. Please check the physical cable status."
+      },
+      "wan_port_connect": {
+        "title": "WAN External Port Connected",
+        "message": "The WAN port external Internet cable of the ipTIME router ({url}) has been successfully reconnected."
+      },
+      "wan_ip_disconnect": {
+        "title": "Internet Connection Lost Warning",
+        "message": "The ipTIME router ({url}) failed to obtain a public IP, and external Internet communication has been disconnected. Please check your ISP modem."
+      },
+      "wan_ip_connect": {
+        "title": "Internet Connection Restored",
+        "message": "The ipTIME router ({url}) has successfully obtained the public IP (**{ip}**) and the Internet connection is restored."
+      },
+      "wan_ip_change": {
+        "title": "Public IP Address Changed",
+        "message": "The public IP address of the ipTIME router ({url}) has changed.\n\n* **Previous IP Address:** `{old_ip}`\n* **New IP Address:** `{new_ip}`"
+      },
+      "geoip_off": {
+        "title": "GeoIP Feature Disabled Warning",
+        "message": "The GeoIP foreign IP blocking security feature of the ipTIME router ({url}) is turned off. If this is unintended, your network might be exposed to random attacks from abroad. Please verify your settings."
+      },
+      "portforward_on": {
+        "title": "Port Forwarding Enabled",
+        "message": "The Port Forwarding feature of the ipTIME router ({url}) has been turned On. Specific local ports will be exposed to the external Internet according to your active forwarding rules."
+      },
+      "portforward_off": {
+        "title": "Port Forwarding Disabled",
+        "message": "The Port Forwarding feature of the ipTIME router ({url}) has been turned Off. All external port open rules are temporarily blocked."
+      },
+      "wifi_off": {
+        "title": "Wi-Fi Network Off Warning ({ssid})",
+        "message": "The wireless network **{ssid}** ({band} band) of the ipTIME router ({url}) has been disabled. All wireless IoT smart devices mapped to this band may lose connection."
+      },
+      "acl_on": {
+        "title": "Remote Web Management (Access List) Enabled Warning",
+        "message": "The external remote web management (Access List) access port of the ipTIME router ({url}) is now open and active. Your network is exposed to external hack attempts. Please ensure your administrator password is extremely secure."
+      },
+      "acl_off": {
+        "title": "Remote Web Management (Access List) Closed",
+        "message": "The external remote web management access port of the ipTIME router ({url}) has been securely closed and blocked. The router is now safely isolated from external intrusion attempts."
+      },
+      "csrf_disabled_danger": {
+        "title": "🔴 CSRF Prevention Disabled Warning (Remote Management Active)",
+        "message": "**[CRITICAL SECURITY RISK]** While remote web management is active on the ipTIME router ({url}), the **CSRF Prevention option has been turned Off**. Your network is highly vulnerable to remote browser hijacking and cross-site phishing attacks. Please re-enable CSRF Protection immediately."
+      },
+      "csrf_security_on": {
+        "title": "CSRF Phishing Defense Enabled",
+        "message": "The web CSRF cross-site request forgery defense option of the ipTIME router ({url}) is now active. Even with the remote web management port open, a double-security barrier against external malicious intrusion is maintained."
+      },
+      "security_csrf_off": {
+        "name": "CSRF Prevention",
+        "description": "Blocks cross-site request forgery attacks where a user visiting a malicious external site while logged in could have their router settings unauthorizedly altered.",
+        "danger": "When disabled, visiting a forged website or clicking a malicious ad can lead to administrative credential theft or DNS manipulation."
+      },
+      "security_arp_virus_off": {
+        "name": "ARP Virus Protection",
+        "description": "Detects and blocks ARP Spoofing and malicious traffic attempting to spoof the MAC addresses of other local network devices.",
+        "danger": "When disabled, if an infected device exists on the local network, sensitive personal information and financial data packets might be easily intercepted (sniffed)."
+      },
+      "security_syn_flood_off": {
+        "name": "SYN Flood Protection",
+        "description": "Defends against Denial of Service (DoS) attacks that attempt to crash the router's resources by flooding it with high volumes of TCP SYN packets.",
+        "danger": "When disabled, abnormal incoming traffic floods can overload the router processor, causing internet drops or severe speed degradation."
+      },
+      "security_smurf_off": {
+        "name": "Smurf DDoS Protection",
+        "description": "Prevents Smurf Distributed Denial of Service (DDoS) attacks that spoof the router's IP to flood the network bandwidth with ICMP Echo packets.",
+        "danger": "When disabled, high-volume traffic bombs from external or compromised local devices can directly crash the router."
+      },
+      "security_ip_source_routing_off": {
+        "name": "IP Source Routing Block",
+        "description": "Prevents packets from specifying their routing path manually to bypass security firewalls or intrusion detection systems.",
+        "danger": "When disabled, attackers can manipulate routing sources to bypass firewall controls and scan internal network routes."
+      },
+      "security_ip_spoofing_off": {
+        "name": "IP Spoofing Protection",
+        "description": "Rejects rogue incoming packets that fake their source IP address as local internal IPs to bypass firewall filtering.",
+        "danger": "When disabled, external hackers can spoof internal trusted IP addresses to bypass security checks and control the router."
+      },
+      "security_inbound_ping_off": {
+        "name": "Block Inbound Ping",
+        "description": "Blocks external ICMP Ping (Echo Request) packets to make the router completely invisible to automated hackers scanning for active IPs.",
+        "danger": "When disabled, your active presence online is exposed, making the router a direct target for DDoS or port-level intrusion attacks."
+      },
+      "security_outbound_ping_off": {
+        "name": "Block Outbound Ping",
+        "description": "Restricts internal devices from sending outbound Ping (ICMP) packets to external servers.",
+        "danger": "When disabled, malicious code running locally can easily contact external Command and Control (C&C) servers or leak outbound port scans."
+      },
+      "security_disabled_title": "⚠️ Security Feature Disabled Warning: {name}",
+      "security_disabled_message": "The security option **{name}** of the ipTIME router ({url}) has been turned Off.\n\n**[What is this feature?]**\n{description}\n\n**[Risk of Disabling]**\n🔴 {danger}\n\nIf this change was not intended, it is strongly recommended that you re-enable it immediately to safeguard your network."
     }
   },
   "options": {
