@@ -15,19 +15,19 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """통합 구성요소 설정."""
-    _LOGGER.info(f"ipTIME Manager 통합 구성요소 시작 (URL: {entry.data[CONF_URL]})")
+    _LOGGER.info(f"Starting ipTIME Manager integration (URL: {entry.data[CONF_URL]})")
     api = IPTimeAPI(hass, entry.data[CONF_URL], entry.data[CONF_ID], entry.data[CONF_PASSWORD])
     coordinator = IPTimeDataUpdateCoordinator(hass, api, entry)
     
-    _LOGGER.info("ipTIME 데이터 최초 수집 시도...")
+    _LOGGER.info("Attempting initial ipTIME data collection...")
     await coordinator.async_config_entry_first_refresh()
-    _LOGGER.info("ipTIME 데이터 최초 수집 완료")
+    _LOGGER.info("Initial ipTIME data collection completed")
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    _LOGGER.info("ipTIME 엔티티 등록 완료")
+    _LOGGER.info("ipTIME entity setup completed")
     
     # 옵션 변경 시 실행될 리스너 등록
     entry.async_on_unload(entry.add_update_listener(update_listener))
