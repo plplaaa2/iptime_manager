@@ -207,10 +207,22 @@ class IPTimeWifiSwitch(CoordinatorEntity, SwitchEntity):
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         bss_info = _web_wireless_bss_map(web_data).get(self._bss_id, {})
         band_key = _web_wireless_bss_band_key(bss_info)
+        
+        # 현재 활성화된 무선 채널 정보 동적 조회
+        channel = "auto"
+        bands = web_data.get("wireless", {}).get("band", []) or []
+        for b in bands:
+            if str(b.get("band")).lower() == str(band_key).lower():
+                ch = b.get("channel")
+                if ch not in (None, "", "0", "0.0"):
+                    channel = str(ch)
+                break
+
         return {
             "bss_id": self._bss_id,
             "ssid": bss_info.get("ssid"),
             "band": _web_wireless_band_label(band_key),
+            "channel": channel,
             "hide": bss_info.get("hide"),
             "security": _web_wireless_security_label(bss_info.get("authenc")),
         }
