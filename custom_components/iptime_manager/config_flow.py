@@ -237,5 +237,5 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
         """최종 설정 저장."""
         new_data = dict(self._config_entry.data)
         new_data["devices"] = self.device_map
-        self.hass.config_entries.async_update_entry(self._config_entry, data=new_data, options=self.temp_options)
-        return self.async_create_entry(title="", data={})
+        self.hass.config_entries.async_update_entry(self._config_entry, data=new_data)
+        return self.async_create_entry(title="", data=self.temp_options)
