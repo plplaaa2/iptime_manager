@@ -75,7 +75,6 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_URL, default=self.temp_config.get(CONF_URL, "")): str,
                 vol.Required(CONF_ID): str,
                 vol.Required(CONF_PASSWORD): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
-                vol.Required(CONF_PASSWORD): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
                 vol.Optional(CONF_CONSIDER_HOME, default=DEFAULT_CONSIDER_HOME): int,
             })
         )
@@ -92,7 +91,7 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             elif not await api.async_update():
                 errors["base"] = "invalid_auth"
         except Exception as err:
-            _LOGGER.error("공유기 접속 중 오류: %s", err)
+            _LOGGER.error("Error connecting to the router: %s", err)
             errors["base"] = "unknown"
         finally:
             await api.async_close()
@@ -221,7 +220,13 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_name_new_devices(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """새로 발견된 기기 이름 설정."""
         if user_input is not None:
-            self.device_map[self.new_macs.pop(0)] = user_input[CONF_NAME]
+            mac = self.new_macs.pop(0)
+            self.device_map[mac] = user_input[CONF_NAME]
+            if CONF_TARGET in self.temp_options:
+                targets = list(self.temp_options[CONF_TARGET])
+                if mac not in targets:
+                    targets.append(mac)
+                    self.temp_options[CONF_TARGET] = targets
             if self.new_macs:
                 return await self.async_step_name_new_devices()
             return self._save_config()
