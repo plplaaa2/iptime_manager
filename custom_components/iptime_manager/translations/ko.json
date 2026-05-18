@@ -13,7 +13,9 @@
           "url": "공유기 주소 (예: http://192.168.0.1:8888)",
           "id": "아이디",
           "password": "비밀번호",
-          "consider_home": "재접속 대기 시간 (초)"
+          "consider_home": "외출(not_home) 판단 지연 시간 (초)",
+          "rssi_limit": "EasyMesh 재실 감지 RSSI 기준값 (dBm)",
+          "scan_interval": "감지 간격 (초)"
         }
       },
       "select_devices": {
@@ -132,7 +134,9 @@
         "title": "설정 변경",
         "data": {
           "targets": "재실 감지 대상 기기 선택",
-          "consider_home": "재접속 대기 시간 (초)"
+          "consider_home": "외출(not_home) 판단 지연 시간 (초)",
+          "rssi_limit": "EasyMesh 재실 감지 RSSI 기준값 (dBm)",
+          "scan_interval": "감지 간격 (초)"
         }
       },
       "name_new_devices": {

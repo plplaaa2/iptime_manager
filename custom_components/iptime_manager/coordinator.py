@@ -19,11 +19,18 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
     def __init__(self, hass: HomeAssistant, api: IPTimeAPI, entry: ConfigEntry) -> None:
         self.api = api
         self.entry = entry
+        self._last_web_update = 0.0
+        
+        scan_interval = entry.options.get(
+            CONF_SCAN_INTERVAL,
+            entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        )
+        
         super().__init__(
             hass,
             _LOGGER,
             name=f"{DOMAIN}_{entry.data.get(CONF_URL)}",
-            update_interval=timedelta(seconds=DEFAULT_INTERVAL),
+            update_interval=timedelta(seconds=scan_interval),
         )
 
     async def _async_update_data(self) -> Dict[str, Any]:
@@ -36,8 +43,13 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             )
             success = await self.api.async_update(rssi_limit=rssi_limit)
             
-            # 2. Web 데이터 수집 (기본/필수)
-            await self.api.async_get_web_data()
+            # 2. Web 데이터 수집 (기본/필수) - 재실 주기 단축 시 공유기 부하 예방을 위한 5초 격리/독립
+            # 다만 스위치 제어 등의 강제 갱신(caching_time 리셋) 시에는 즉시 동기화합니다.
+            import time
+            now = time.time()
+            if now - self._last_web_update >= 5.0 or getattr(self.api, "_last_caching_time", 300.0) == 0.0:
+                await self.api.async_get_web_data()
+                self._last_web_update = now
 
             if not success:
                 _LOGGER.warning("Failed to collect web data from the router (Auth or communication error)")

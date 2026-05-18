@@ -77,6 +77,7 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_PASSWORD): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
                 vol.Optional(CONF_CONSIDER_HOME, default=DEFAULT_CONSIDER_HOME): int,
                 vol.Optional(CONF_RSSI_LIMIT, default=DEFAULT_RSSI_LIMIT): int,
+                vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
             })
         )
 
@@ -119,6 +120,7 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_PASSWORD, default=self.temp_config.get(CONF_PASSWORD)): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
                 vol.Optional(CONF_CONSIDER_HOME, default=self.temp_config.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)): int,
                 vol.Optional(CONF_RSSI_LIMIT, default=self.temp_config.get(CONF_RSSI_LIMIT, DEFAULT_RSSI_LIMIT)): int,
+                vol.Optional(CONF_SCAN_INTERVAL, default=self.temp_config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
             }),
             errors=errors
         )
@@ -166,6 +168,7 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
                 CONF_CONSIDER_HOME: user_input[CONF_CONSIDER_HOME],
                 CONF_TARGET: selected,
                 CONF_RSSI_LIMIT: user_input[CONF_RSSI_LIMIT],
+                CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
             }
             
             if user_input.get("add_manual"):
@@ -201,12 +204,18 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
             self._config_entry.data.get(CONF_RSSI_LIMIT, DEFAULT_RSSI_LIMIT)
         )
 
+        current_scan_interval = self._config_entry.options.get(
+            CONF_SCAN_INTERVAL,
+            self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        )
+
         return self.async_show_form(
             step_id="init", 
             data_schema=vol.Schema({
                 vol.Optional(CONF_TARGET, default=current_targets): cv.multi_select(options),
                 vol.Required(CONF_CONSIDER_HOME, default=current_timeout): int,
                 vol.Optional(CONF_RSSI_LIMIT, default=current_rssi_limit): int,
+                vol.Optional(CONF_SCAN_INTERVAL, default=current_scan_interval): int,
                 vol.Optional("add_manual", default=False): bool,
             })
         )
