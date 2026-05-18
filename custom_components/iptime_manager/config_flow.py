@@ -21,6 +21,15 @@ from .api import IPTimeAPI
 
 _LOGGER = logging.getLogger(__name__)
 
+def _is_private_mac(mac: str) -> bool:
+    """사설(임의) MAC 주소인지 판단한다.
+    첫 번째 바이트의 두 번째 16진수 문자가 2, 6, A, E 중 하나이면 사설 MAC 주소이다.
+    """
+    clean = mac.replace(":", "").replace("-", "").lower()
+    if len(clean) >= 2:
+        return clean[1] in ("2", "6", "a", "e")
+    return False
+
 def _format_mac(mac: str) -> str:
     """소문자/기호 없는 MAC 주소를 대문자 및 콜론(:)이 포함된 표준 형태로 포맷팅한다."""
     clean = mac.replace(":", "").replace("-", "").upper()
@@ -99,7 +108,16 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await api.async_close()
 
         if not errors:
-            options = {mac: f"{info.get('ip', 'N/A')} ({_format_mac(mac)})" for mac, info in api.result.items() if mac != "session" and isinstance(info, dict)}
+            options = {}
+            for mac, info in api.result.items():
+                if mac == "session" or not isinstance(info, dict):
+                    continue
+                ip = info.get("ip", "N/A")
+                formatted_mac = _format_mac(mac)
+                if _is_private_mac(mac):
+                    options[mac] = f"[임의 MAC / Private MAC] {ip} ({formatted_mac})"
+                else:
+                    options[mac] = f"{ip} ({formatted_mac})"
             if not options:
                 errors["base"] = "no_devices_found"
             elif user_input is not None:
@@ -183,11 +201,20 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
             devices = coordinator.data.get("devices", {})
             for mac, info in devices.items():
                 if mac != "session" and isinstance(info, dict):
-                    options[mac] = f"{info.get('ip', 'N/A')} ({_format_mac(mac)})"
+                    ip = info.get('ip', 'N/A')
+                    formatted_mac = _format_mac(mac)
+                    if _is_private_mac(mac):
+                        options[mac] = f"[임의 MAC / Private MAC] {ip} ({formatted_mac})"
+                    else:
+                        options[mac] = f"{ip} ({formatted_mac})"
         
         for mac, name in self.device_map.items():
             if mac not in options:
-                options[mac] = f"{name} (오프라인 - {_format_mac(mac)})"
+                formatted_mac = _format_mac(mac)
+                if _is_private_mac(mac):
+                    options[mac] = f"[임의 MAC / Private MAC] {name} (오프라인 - {formatted_mac})"
+                else:
+                    options[mac] = f"{name} (오프라인 - {formatted_mac})"
             
         current_timeout = self._config_entry.options.get(
             CONF_CONSIDER_HOME, 
