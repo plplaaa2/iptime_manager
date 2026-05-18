@@ -3,7 +3,7 @@
 [🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.0.2-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.0.3-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 Home Assistant integration for EFM ipTIME routers. Supporting models with the 3rd-generation responsive IUX (including AX-series) and the latest Flutter-based Beta UI, it operates entirely on a JSON-RPC (Web API) architecture for lightweight, real-time monitoring and system control without complex SNMP configuration.
@@ -17,11 +17,16 @@ Home Assistant integration for EFM ipTIME routers. Supporting models with the 3r
 * **Lifecycle Management**: Static parameters (e.g., model name) are queried once and permanently cached. Semi-static configurations (DNS, DoS, UPnP, Reboot schedules, WireGuard states) are cached for 5 minutes to 1 hour.
 * **Instant Mutation Invalidation**: Modifying a switch or selection immediately invalidates the corresponding memory cache, pushing changes to the router and forcing an immediate background update for instant feedback.
 
-### 2. WAN Status & Public IP Change Tracking
-* **Link & IP Monitoring**: Monitors the WAN physical Ethernet link and public IP lease status.
-* **Persistent Notifications**: Triggers a Home Assistant persistent notification containing both the previous and newly assigned IP addresses when a WAN disconnection or public IP change occurs.
+### 2. WAN Status, Public IP & Security Custom Alert Events (1.0.3 Advanced)
+* **Dual-Notification Pipeline**: Triggers a dashboard persistent notification and simultaneously fires real-time custom event bus payloads (`iptime_manager_wan_alert`) when WAN disconnection or public IP change occurs.
+* **Instant Security Threat Detections**: Fires a dedicated custom security event (`iptime_manager_security_alert`) immediately when high-risk changes occur (such as disabling GeoIP, turning off CSRF defense, shutting down DoS protectors, or disabling BSS Wi-Fi SSIDs), enabling instant Telegram/mobile push setups.
 
-### 3. SSID-Level Wi-Fi Switches
+### 3. Wi-Fi Band-Level Optimal Channel Control & Real-time Active Channel (1.0.3 New)
+* **Optimal Channel Selectors**: Manages wireless active channels directly from the Home Assistant dashboard selectors (`select.iptime_wifi_channel_...`) for 2.4GHz, 5GHz, and 6GHz bands.
+* **Smart Caching & Background Scans**: Introduces 1-hour smart caching and background task engines to fetch available channels gracefully, preventing synchronous connection overheads from freezing the Home Assistant UI.
+* **Active Channel Attribute Binding**: Attaches active operational channel numbers directly onto the state attributes (`channel` field) of the Wi-Fi toggle switches.
+
+### 4. SSID-Level Wi-Fi Switches
 * **SSID Toggles**: Provides switch (`switch`) entities to toggle individual SSIDs on 2.4G, 5G, and 6G bands.
 * **Network Stability**: Operating at the BSS (SSID) level rather than restarting the entire wireless chipset avoids dropping connections on other smart home IoT devices.
 
@@ -50,6 +55,11 @@ Home Assistant integration for EFM ipTIME routers. Supporting models with the 3r
 * **5-Second Isolation (Safety Throttling)**: Even with rapid presence scans (e.g., every 1–3 seconds), heavier web queries (SSID, DNS, system details) are throttled to a minimum 5-second interval to avoid router CPU lockups.
 * **Zero-Delay Mutative Actions**: Dashboard switch toggles bypass the 5-second throttling interval to execute instantly and fetch fresh states immediately.
 
+### 10. Physical Port Link State Custom Events (1.0.3 New)
+* **Link State Change Tracking**: Monitors physical cable connections (Link Up / Down) on LAN 1–4 and WAN ports.
+* **Reduced Overhead (No Alert Clutter)**: Avoids triggering excessive persistent notification popups on the dashboard. Instead, it fires backend custom events (`iptime_manager_port_connected`, `iptime_manager_port_disconnected`) for silent, high-performance automation.
+* **Rich Payload Fields**: Appends comprehensive details—including port type (lan/wan), port number, display label, and physical negotiated connection speed (Gbps/Mbps)—directly onto the event data, fully supporting smart device power controls or alerts.
+
 ---
 
 ## Entity Summary
@@ -60,8 +70,9 @@ Home Assistant integration for EFM ipTIME routers. Supporting models with the 3r
 | **`sensor`** | Router Uptime, Model Name, Firmware Version (with update status), WAN IP & MAC Address, Primary/Secondary DNS, GeoIP Block Count, etc. |
 | **`binary_sensor`** | WAN & LAN 1-4 Physical Link Status (`connectivity` device class supported) |
 | **`switch`** | SSID-level Wi-Fi toggles, WireGuard Server toggle, Auto-Reboot toggle, Port Forwarding toggle, UPnP Relay toggle, **[8 Security Controls]** Remote Admin/CSRF/ARP Virus/Ping Block, etc. |
-| **`select`** | Night LED Mode, Auto-Reboot Day, GeoIP Policy Settings |
+| **`select`** | Night LED Mode, Auto-Reboot Day, GeoIP Policy Settings, **[New] Wi-Fi Band Channel Selector (`select.iptime_wifi_channel_...`)** |
 | **`button`** | Router Safe Reboot Trigger (`button.reboot`) |
+| **`Event Bus`** | **[New] Port Connection/Disconnection Events (`iptime_manager_port_connected` / `_disconnected`), Security Alerts (`iptime_manager_security_alert`), WAN Port/IP Alerts (`iptime_manager_wan_alert`)** |
 
 ---
 
