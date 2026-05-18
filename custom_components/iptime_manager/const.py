@@ -18,7 +18,6 @@ CONF_TARGET = 'targets'
 CONF_NAME = 'name'
 CONF_MAC = 'mac'
 DEFAULT_INTERVAL = 5
-RSS_LIMIT = -81
 
 HOSTINFO_URN = '/login/hostinfo2.cgi'
 LOGIN_URN = '/sess-bin/login_handler.cgi'
@@ -38,3 +37,5 @@ BETA_SERVICE_URN = '/cgi/service.cgi'
 TIME_OUT = 5
 CONF_CONSIDER_HOME = 'consider_home'
 DEFAULT_CONSIDER_HOME = 180 # 기본값 3분 (초 단위)
+CONF_RSSI_LIMIT = 'rssi_limit'
+DEFAULT_RSSI_LIMIT = -81
