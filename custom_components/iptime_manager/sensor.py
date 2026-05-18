@@ -130,6 +130,10 @@ class IPTimeSystemSensor(CoordinatorEntity, SensorEntity):
         self._entry = entry
         self._attr_name = f"{description.name} ({entry.data.get(CONF_URL)})"
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        
+        # MAC 관련 센서는 보안성과 대시보드 정화를 위해 초기 설치 시 기본 비활성화 처리
+        if description.key in ("wan_mac", "lan_mac"):
+            self._attr_entity_registry_enabled_default = False
 
     @property
     def native_value(self) -> Any:
