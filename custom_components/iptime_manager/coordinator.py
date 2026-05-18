@@ -135,6 +135,15 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 "notification_id": "iptime_wan_port_disconnect"
                             }
                         )
+                        self.hass.bus.async_fire(
+                            "iptime_manager_wan_alert",
+                            {
+                                "alert_type": "wan_port",
+                                "state": "disconnected",
+                                "display_name": "WAN Port",
+                                "url": self.entry.data.get(CONF_URL)
+                            }
+                        )
                     elif not old_linked and new_linked:
                         _LOGGER.info("WAN external internet port link reconnected - creating notification")
                         title = get_notify_string("wan_port_connect.title", "WAN External Port Connected")
@@ -150,6 +159,15 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 "title": title,
                                 "message": message,
                                 "notification_id": "iptime_wan_port_connect"
+                            }
+                        )
+                        self.hass.bus.async_fire(
+                            "iptime_manager_wan_alert",
+                            {
+                                "alert_type": "wan_port",
+                                "state": "connected",
+                                "display_name": "WAN Port",
+                                "url": self.entry.data.get(CONF_URL)
                             }
                         )
                     
@@ -171,6 +189,15 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 "notification_id": "iptime_wan_ip_disconnect"
                             }
                         )
+                        self.hass.bus.async_fire(
+                            "iptime_manager_wan_alert",
+                            {
+                                "alert_type": "wan_ip",
+                                "state": "disconnected",
+                                "display_name": "WAN IP",
+                                "url": self.entry.data.get(CONF_URL)
+                            }
+                        )
                     elif not old_ip_valid and new_ip_valid:
                         _LOGGER.info("WAN Internet IP restored - creating notification")
                         title = get_notify_string("wan_ip_connect.title", "Internet Connection Restored")
@@ -188,6 +215,16 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 "notification_id": "iptime_wan_ip_connect"
                             }
                         )
+                        self.hass.bus.async_fire(
+                            "iptime_manager_wan_alert",
+                            {
+                                "alert_type": "wan_ip",
+                                "state": "connected",
+                                "display_name": "WAN IP",
+                                "new_ip": new_ip,
+                                "url": self.entry.data.get(CONF_URL)
+                            }
+                        )
                     elif old_ip_valid and new_ip_valid and old_ip != new_ip:
                         _LOGGER.info("WAN public IP address changed - creating notification")
                         title = get_notify_string("wan_ip_change.title", "Public IP Address Changed")
@@ -203,6 +240,17 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 "title": title,
                                 "message": message,
                                 "notification_id": "iptime_wan_ip_change"
+                            }
+                        )
+                        self.hass.bus.async_fire(
+                            "iptime_manager_wan_alert",
+                            {
+                                "alert_type": "wan_ip",
+                                "state": "changed",
+                                "display_name": "WAN IP",
+                                "old_ip": old_ip,
+                                "new_ip": new_ip,
+                                "url": self.entry.data.get(CONF_URL)
                             }
                         )
 
@@ -226,6 +274,15 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 "title": title,
                                 "message": message,
                                 "notification_id": "iptime_security_geoip_off"
+                            }
+                        )
+                        self.hass.bus.async_fire(
+                            "iptime_manager_security_alert",
+                            {
+                                "alert_type": "geoip",
+                                "state": "disabled",
+                                "display_name": "GeoIP Protection",
+                                "url": self.entry.data.get(CONF_URL)
                             }
                         )
 
@@ -258,6 +315,15 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 "notification_id": "iptime_portforward_on"
                             }
                         )
+                        self.hass.bus.async_fire(
+                            "iptime_manager_security_alert",
+                            {
+                                "alert_type": "portforward",
+                                "state": "enabled",
+                                "display_name": "Port Forwarding",
+                                "url": self.entry.data.get(CONF_URL)
+                            }
+                        )
                     elif old_pf_enable and not new_pf_enable:
                         _LOGGER.info("Port forwarding feature disabled - creating notification")
                         title = get_notify_string("portforward_off.title", "Port Forwarding Disabled")
@@ -273,6 +339,15 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 "title": title,
                                 "message": message,
                                 "notification_id": "iptime_portforward_off"
+                            }
+                        )
+                        self.hass.bus.async_fire(
+                            "iptime_manager_security_alert",
+                            {
+                                "alert_type": "portforward",
+                                "state": "disabled",
+                                "display_name": "Port Forwarding",
+                                "url": self.entry.data.get(CONF_URL)
                             }
                         )
 
@@ -322,6 +397,17 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                             "notification_id": f"iptime_wifi_off_{bss_id}"
                                         }
                                     )
+                                    self.hass.bus.async_fire(
+                                        "iptime_manager_security_alert",
+                                        {
+                                            "alert_type": "wifi_bss",
+                                            "state": "disabled",
+                                            "display_name": "Wi-Fi Network",
+                                            "ssid": ssid,
+                                            "band": band_label,
+                                            "url": self.entry.data.get(CONF_URL)
+                                        }
+                                    )
 
                     # D. Access List (원격 웹 관리) 포트 차단 및 개방 감지 알림
                     def get_acl_flag(web_data: Dict[str, Any]) -> bool:
@@ -353,6 +439,15 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 "notification_id": "iptime_acl_on"
                             }
                         )
+                        self.hass.bus.async_fire(
+                            "iptime_manager_security_alert",
+                            {
+                                "alert_type": "acl",
+                                "state": "enabled",
+                                "display_name": "Remote Web Management (ACL)",
+                                "url": self.entry.data.get(CONF_URL)
+                            }
+                        )
                     elif old_acl_flag and not new_acl_flag:
                         _LOGGER.info("Remote WAN management (Access List) disabled - creating notification")
                         title = get_notify_string("acl_off.title", "Remote Web Management (Access List) Closed")
@@ -368,6 +463,15 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 "title": title,
                                 "message": message,
                                 "notification_id": "iptime_acl_off"
+                            }
+                        )
+                        self.hass.bus.async_fire(
+                            "iptime_manager_security_alert",
+                            {
+                                "alert_type": "acl",
+                                "state": "disabled",
+                                "display_name": "Remote Web Management (ACL)",
+                                "url": self.entry.data.get(CONF_URL)
                             }
                         )
 
@@ -401,6 +505,16 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                     "notification_id": "iptime_csrf_disabled_danger"
                                 }
                             )
+                            self.hass.bus.async_fire(
+                                "iptime_manager_security_alert",
+                                {
+                                    "alert_type": "csrf",
+                                    "state": "disabled",
+                                    "display_name": "CSRF Prevention",
+                                    "danger": True,
+                                    "url": self.entry.data.get(CONF_URL)
+                                }
+                            )
                         elif not old_csrf and new_csrf:
                             _LOGGER.info("CSRF protection restored while remote WAN management is active - creating notification")
                             title = get_notify_string("csrf_security_on.title", "CSRF Phishing Defense Enabled")
@@ -416,6 +530,16 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                     "title": title,
                                     "message": message,
                                     "notification_id": "iptime_csrf_security_on"
+                                }
+                            )
+                            self.hass.bus.async_fire(
+                                "iptime_manager_security_alert",
+                                {
+                                    "alert_type": "csrf",
+                                    "state": "enabled",
+                                    "display_name": "CSRF Prevention",
+                                    "danger": False,
+                                    "url": self.entry.data.get(CONF_URL)
                                 }
                             )
 
@@ -512,6 +636,16 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                         "title": title,
                                         "message": message,
                                         "notification_id": info["notification_id"]
+                                    }
+                                )
+                                self.hass.bus.async_fire(
+                                    "iptime_manager_security_alert",
+                                    {
+                                        "alert_type": "dos_security",
+                                        "state": "disabled",
+                                        "display_name": info["name"],
+                                        "security_option": key,
+                                        "url": self.entry.data.get(CONF_URL)
                                     }
                                 )
 
