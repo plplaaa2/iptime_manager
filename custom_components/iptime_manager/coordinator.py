@@ -514,6 +514,74 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                         "notification_id": info["notification_id"]
                                     }
                                 )
+
+                    # G. 물리 유선 포트(LAN/WAN) 실시간 링크 연결 상태(Up/Down) 변화 감지 및 커스텀 이벤트 버스 방출
+                    old_ports = old_web.get("ports", []) if isinstance(old_web, dict) else []
+                    new_ports = new_web.get("ports", []) if isinstance(new_web, dict) else []
+
+                    if isinstance(old_ports, list) and isinstance(new_ports, list):
+                        def get_link_state(port_info: Dict[str, Any], web_data: Dict[str, Any]) -> tuple[bool, str]:
+                            link_val = port_info.get("link")
+                            p_type = str(port_info.get("type", "")).lower()
+                            if p_type == "wan" and link_val in (None, "", "null"):
+                                wan_info = web_data.get("wan", {}) if isinstance(web_data, dict) else {}
+                                for key in ("wan_speed", "link", "speed"):
+                                    val = wan_info.get(key)
+                                    if val not in (None, "", "null"):
+                                        link_val = val
+                                        break
+                            
+                            if link_val in (None, "", "null", "0", 0, "down", "Down"):
+                                return False, "Down"
+                            
+                            link_str = str(link_val)
+                            import re
+                            match = re.match(r"^(\d+)([fh]?)$", link_str)
+                            if match:
+                                speed = int(match.group(1))
+                                label = f"{speed // 1000}Gbps" if speed >= 1000 else f"{speed}Mbps"
+                                return True, label
+                            return True, link_str
+
+                        old_port_map = {f"{str(p.get('type')).lower()}:{p.get('port')}": p for p in old_ports if isinstance(p, dict) and p.get("port") is not None}
+                        new_port_map = {f"{str(p.get('type')).lower()}:{p.get('port')}": p for p in new_ports if isinstance(p, dict) and p.get("port") is not None}
+
+                        for p_key, old_p in old_port_map.items():
+                            new_p = new_port_map.get(p_key)
+                            if new_p:
+                                old_up, old_speed = get_link_state(old_p, old_web)
+                                new_up, new_speed = get_link_state(new_p, new_web)
+                                
+                                p_type = str(old_p.get("type", "port")).lower()
+                                p_num = old_p.get("port")
+                                disp_name = "WAN" if p_type == "wan" else f"LAN {p_num}"
+                                
+                                # 케이스 G-1: 포트가 새로 연결됨 (Link Up)
+                                if not old_up and new_up:
+                                    _LOGGER.info(f"Physical LAN Port Link Connected: {disp_name} at {new_speed}")
+                                    self.hass.bus.async_fire(
+                                        "iptime_manager_port_connected",
+                                        {
+                                            "port_type": p_type,
+                                            "port_num": p_num,
+                                            "display_name": disp_name,
+                                            "link_speed": new_speed,
+                                            "url": self.entry.data.get(CONF_URL)
+                                        }
+                                    )
+                                # 케이스 G-2: 포트 연결이 끊김 (Link Down)
+                                elif old_up and not new_up:
+                                    _LOGGER.warning(f"Physical LAN Port Link Disconnected: {disp_name}")
+                                    self.hass.bus.async_fire(
+                                        "iptime_manager_port_disconnected",
+                                        {
+                                            "port_type": p_type,
+                                            "port_num": p_num,
+                                            "display_name": disp_name,
+                                            "link_speed": "Down",
+                                            "url": self.entry.data.get(CONF_URL)
+                                        }
+                                    )
                 except Exception as ex:
                     _LOGGER.error(f"Error checking WAN link status change: {ex}")
 
