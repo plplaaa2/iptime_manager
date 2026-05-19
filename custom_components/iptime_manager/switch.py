@@ -9,6 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, CONF_URL
+from .api import format_channel_string
 
 
 def _entity_key_part(value: Any) -> str:
@@ -215,7 +216,7 @@ class IPTimeWifiSwitch(CoordinatorEntity, SwitchEntity):
             if str(b.get("band")).lower() == str(band_key).lower():
                 ch = b.get("channel")
                 if ch not in (None, "", "0", "0.0"):
-                    channel = str(ch)
+                    channel = format_channel_string(ch)
                 break
 
         return {

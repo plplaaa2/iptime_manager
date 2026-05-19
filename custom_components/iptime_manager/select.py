@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, CONF_URL
+from .api import format_channel_string
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -372,7 +373,7 @@ class IPTimeWifiChannelSelect(CoordinatorEntity, SelectEntity):
                     ch = b.get("channel")
                     if ch in (None, "", "0", "0.0"):
                         return "auto"
-                    return str(ch)
+                    return format_channel_string(ch)
         return "auto"
 
     @property
@@ -401,7 +402,8 @@ class IPTimeWifiChannelSelect(CoordinatorEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """사용자가 채널 선택 시 공유기 채널 변경 실행."""
-        success = await self.coordinator.api.async_set_wireless_channel(self._band, option)
+        channel_to_set = option.split(" ")[0] if option != "auto" else "auto"
+        success = await self.coordinator.api.async_set_wireless_channel(self._band, channel_to_set)
         if success:
             await self.coordinator.async_request_refresh()
 

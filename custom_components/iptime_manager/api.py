@@ -41,6 +41,30 @@ def _extract_table_cells(row_html: str) -> List[str]:
     cells = re.findall(r"<td\b[^>]*>(.*?)</td>", row_html, flags=re.IGNORECASE | re.DOTALL)
     return [html.unescape(re.sub(r"<[^>]+>", "", cell)).strip() for cell in cells]
 
+def format_channel_string(channel_str: Any) -> str:
+    if channel_str in (None, "", "0", "0.0", "auto", "Auto", "AUTO"):
+        return "auto"
+    s = str(channel_str).lower().strip()
+    if "." not in s:
+        return s
+    parts = s.split(".")
+    if len(parts) != 2:
+        return parts[0]
+    try:
+        x = int(parts[0])
+        y = int(parts[1])
+    except ValueError:
+        return parts[0]
+    diff = abs(x - y)
+    if 1 <= x <= 14:
+        return f"{x} (40MHz)" if diff == 4 else str(x)
+    if x >= 36:
+        if diff == 4: return f"{x} (40MHz)"
+        if y in [42, 58, 106, 122, 138, 155, 171]: return f"{x} (80MHz)"
+        if y in [50, 114, 163, 15, 47, 79, 111, 143, 175, 207]: return f"{x} (160MHz)"
+        return f"{x} (Bonded)"
+    return str(x)
+
 class IPTimeAPI:
     """ipTIME 공유기 API (누락 함수 복구 버전)"""
     
@@ -550,7 +574,7 @@ class IPTimeAPI:
                     ids = re.findall(re.compile(r"\w{16}"), text)
                     if ids:
                         self.efm_session_id = ids[0]
-                        _LOGGER.debug(f"로그인 성공 (URL: {urn}, Session: {self.efm_session_id})")
+                        _LOGGER.debug(f"로그인 성공 (URL: {urn}, Session: {self.efm_session_id[:4]}****)")
                         return True
             except Exception as err:
                 _LOGGER.debug(f"로그인 시도 실패 ({urn}): {err}")
@@ -629,7 +653,7 @@ class IPTimeAPI:
                             
                     if session_id:
                         self.efm_session_id = session_id
-                        _LOGGER.info(f"베타 UI 세션 아이디 확보: {self.efm_session_id}")
+                        _LOGGER.debug(f"베타 UI 세션 아이디 확보 성공 (Session ID: {self.efm_session_id[:4]}****)")
                     else:
                         _LOGGER.debug("쿠키가 없으나 결과가 done이므로 계속 진행")
                         # 쿠키가 없어도 일단 진행 (이후 요청에서 401 뜨면 그때 세션 파기)
@@ -963,7 +987,10 @@ class IPTimeAPI:
                     if "auto" not in clean_channels:
                         clean_channels.append("auto")
                 else:
-                    clean_channels.append(c)
+                    # 채널 본딩 정보 매핑 (예: 149.155 -> 149 (80MHz))
+                    norm_c = format_channel_string(c)
+                    if norm_c not in clean_channels:
+                        clean_channels.append(norm_c)
             
             if "auto" not in clean_channels:
                 clean_channels.insert(0, "auto")
