@@ -1,132 +1,57 @@
-# 📋 Changelog (변경 이력)
+# Changelog
 
-ipTIME Manager의 공식 버전별 핵심 변경 사항 및 개선 내역입니다.
-본 프로젝트는 홈어시스턴트 HACS 배포 규격을 엄격하게 준수하며 사용자에게 가장 안정적이고 다채로운 공유기 제어 환경을 제공합니다.
+## [1.0.8] - Unreleased
 
----
+- Added HACS validation and Hassfest GitHub Actions.
+- Updated HACS metadata to comply with the current schema.
+- Added the `hub` integration type and sorted manifest keys.
+- Updated the default README to concise English documentation.
+- Added a concise Korean README as `README.ko.md`.
+- Updated integration brand images to 256×256 PNG files.
+- Fixed translation files to match the Home Assistant translation schema.
 
-## EasyMesh and WireGuard diagnostics (v1.0.7, 2026-08-05)
+## [1.0.7] - 2026-08-05
 
-* Added EasyMesh SSID read-only attributes while excluding passwords and keys.
-* Added a diagnostic sensor for the current number of connected WireGuard peers.
-* Added device mode selection to Config Flow: auto, single router, EasyMesh Controller, or EasyMesh Agent.
+- Added read-only EasyMesh SSID attributes without exposing passwords or keys.
+- Added a diagnostic sensor for the number of connected WireGuard peers.
+- Added device mode selection to Config Flow: auto, single router, EasyMesh Controller, or EasyMesh Agent.
 
-## EasyMesh diagnostic entities (v1.0.6, 2026-08-05)
+## [1.0.6] - 2026-08-05
 
-* Added EasyMesh activation and Agent count diagnostic entities.
-* Added per-Agent connection status entities and Controller metadata attributes.
-* Classified router identity/status sensors as diagnostic entities.
-* Classified Wi-Fi channel, auto-reboot day, night LED, and GeoIP policy selectors as configuration entities.
+- Added EasyMesh activation and Agent count diagnostic entities.
+- Added per-Agent connection status entities and Controller metadata attributes.
+- Classified router identity and status sensors as diagnostic entities.
+- Classified Wi-Fi channel, auto-reboot day, night LED, and GeoIP policy selectors as configuration entities.
 
-## 🚀 [v1.0.5] - 2026-07-13 (ScannerEntity 감쇠 경고 수정 및 안정화 패치)
+## [1.0.5] - 2026-07-13
 
-이 버전은 홈어시스턴트 Core 2027.6 버전에서 삭제될 예정인 `ScannerEntity` 감쇠 경고(deprecation warning)를 해결하기 위해 엔티티의 임포트 경로를 수정하여 시스템 안정성을 보강한 핫픽스 업데이트 버전입니다.
+- Updated the `ScannerEntity` import path to remove a Home Assistant deprecation warning.
+- Improved compatibility with future Home Assistant releases.
 
-### 🛠️ 플랫폼 및 라이브러리 안정화
-* **ScannerEntity 임포트 경로 최적화**: 기존 `homeassistant.components.device_tracker.config_entry` 모듈 경로에서 더 이상 권장되지 않는 `ScannerEntity`를 최신 표준 경로인 `homeassistant.components.device_tracker`에서 직접 가져오도록 리팩토링하여 경고 로그를 완전히 제거했습니다.
+## [1.0.4] - 2026-05-27
 
----
+- Added firmware update detection and persistent notifications.
+- Added a direct link to the router settings page in update notifications.
 
-## 🚀 [v1.0.4] - 2026-05-27 (공유기 펌웨어 업데이트 감시 및 알림 기능 추가)
+## [1.0.3] - 2026-05-18
 
-이 버전은 ipTIME 공유기의 새로운 펌웨어 버전 배포 여부를 감지하고 홈어시스턴트 지속 알림으로 빠르게 알려주는 기능이 추가된 업데이트 버전입니다.
+- Added Wi-Fi channel selection and physical LAN/WAN port monitoring.
+- Added security and WAN status events for Home Assistant automations.
+- Disabled WAN and LAN MAC sensors by default.
 
-### 🆙 공유기 최신 펌웨어 업데이트 실시간 감지 및 자동 알림
-* **펌웨어 버전 비교 감시**: 현재 설치된 펌웨어 버전과 공유기 제조사가 배포한 최신 펌웨어 버전을 실시간으로 비교하여, 업데이트가 필요한 경우 홈어시스턴트의 지속 알림(`persistent_notification`)을 자동 생성합니다.
-* **이중 알림 방지 및 자동 해제**: 이미 알림이 전송된 상태라면 중복 알림을 방지하며, 사용자가 공유기 펌웨어 업데이트를 완료하면 기존 생성되었던 업데이트 알림을 자동으로 화면에서 해제(Dismiss)합니다.
-* **알림 내 설정 페이지 바로가기 링크 제공**: 마크다운을 지원하는 알림 영역 내에 클릭 시 즉시 공유기 설정 화면으로 진입할 수 있는 바로가기 하이퍼링크(Link)를 탑재하여 UX 편의성을 제고했습니다.
+## [1.0.2] - 2026-05-18
 
----
+- Added randomized/private MAC address warnings.
+- Added configurable scan intervals and presence tracking options.
+- Improved polling performance with separate presence and router data intervals.
 
-## 🚀 [v1.0.3] - 2026-05-18 (Wi-Fi 채널 변경 수동 제어, 물리 유선 포트 감지 및 보안/WAN 실시간 커스텀 이벤트 고도화)
+## [1.0.1] - 2026-05-18
 
-이 버전은 무선 네트워크의 가동 채널을 대시보드에서 직접 최적화할 수 있는 Wi-Fi 대역별 채널 설정 셀렉터가 탑재되고, 공유기 물리 이더넷 포트(LAN 1~4 및 WAN)의 연결 상태와 공유기 핵심 보안 설정 변화를 실시간으로 홈어시스턴트 이벤트 버스에 방출하여 모바일 푸시 알림(텔레그램 등) 자동화 트리거로 결합할 수 있도록 초강력 고도화된 v1.0.3 정식 업데이트 버전입니다.
+- Fixed Options Flow device selection persistence.
+- Removed excluded device trackers from the entity registry.
+- Improved English and Korean localization.
 
-### 📡 Wi-Fi 무선 대역별 최적 채널 수동 제어(Select) 및 실시간 채널 연동 신설
-* **무선 대역별 최적 채널 셀렉터 탑재**: 2.4GHz, 5GHz, 6GHz 등 각 대역의 가동 채널을 대시보드에서 클릭 한 번으로 수동 변경할 수 있는 셀렉터(`select.iptime_wifi_channel_...`) 기능을 신설했습니다.
-* **1시간 스마트 캐시 & 비동기 백그라운드 스캔**: 동기적인 API 통신으로 인한 UI 프리징 현상을 차단하고자, 1시간 스마트 캐시 및 비동기 스캔 아키텍처를 적용해 가용 채널 목록을 안전하고 부드럽게 갱신합니다.
-* **와이파이 제어 스위치 채널 속성 노출**: 개별 Wi-Fi 온오프 스위치(`IPTimeWifiSwitch`)의 상태 속성(`extra_state_attributes`)에 현재 가동 중인 물리 채널 정보(`channel` 필드)를 결합 노출하여 가독성을 극대화했습니다.
+## [1.0.0] - 2026-05-17
 
-### ⏱️ 공유기 물리 유선 포트(LAN/WAN) 링크 탈착 실시간 감지 및 이벤트 방출
-* **물리 링크 상태 추적**: 공유기 뒷면의 LAN 1~4 및 WAN 포트의 이더넷 케이블 연결/단절(Link Up / Down) 상태 변화를 실시간으로 추적합니다.
-* **지능형 이벤트 버스 방출**: 단순 기기 전원 토글 시 수십 개의 알림창이 대시보드를 어지럽히지 않도록, 알림 팝업창 대신 홈어시스턴트 전역 이벤트 버스에 `iptime_manager_port_connected` 및 `iptime_manager_port_disconnected` 커스텀 이벤트를 방출합니다.
-* **풍부한 자동화 데이터 탑재**: 이벤트 데이터 페이로드에 포트 유형(lan/wan), 포트 번호, 표기 이름, 감지된 연결 물리 속도(Gbps/Mbps) 등을 정밀 디코딩하여 동봉하므로 기기별 전원 차단 제어나 정교한 망 감시 자동화를 손쉽게 구축할 수 있습니다.
-
-### 🔒 보안 위협 및 WAN 인터넷 단절 시 실시간 커스텀 이벤트 동시 송출 고도화
-* **이중 통보 시스템 아키텍처**: 기존에 화면 알림으로만 띄우던 보안 해제 경고(GeoIP 차단 꺼짐, CSRF 해제, DoS 기능 비활성화, Wi-Fi BSS 강제 종료 등)와 WAN 인터넷 연결 상태 변화(물리 단선, IP 할당 해제, 공인 IP 변경) 시 화면 알림뿐만 아니라 외부 자동화 트리거용 실시간 커스텀 이벤트를 동시에 송출하도록 설계했습니다.
-* **보안 경보 이벤트 (`iptime_manager_security_alert`)**: 보안 제어 옵션이 무단 혹은 강제로 꺼졌을 때, 경보 종류 및 상세 옵션 정보를 페이로드에 담아 방출하므로 스마트폰 컴패니언 앱이나 텔레그램 실시간 비상 푸시 알림으로 즉각 결합할 수 있습니다.
-* **WAN 인터넷 경보 이벤트 (`iptime_manager_wan_alert`)**: WAN 물리 단선, 공인 IP 차단 마비, 또는 외부 공인 IP 주소 변경 발생 시 이벤트 페이로드에 이전/신규 IP 정보 등을 풍부히 담아 방출하여 예비 회선 자동 전환이나 외부 DNS 동적 매핑 자동화 트리거로 활용할 수 있도록 보강했습니다.
-
-### 🛡️ WAN MAC 및 LAN MAC 주소 센서 초기 비활성화
-* **개인정보 보호 및 Recorder DB 용량 최적화**: 공유기의 고유 식별 정보인 WAN MAC 주소 및 LAN MAC 주소 센서를 최초 통합구성요소 추가 시 기본 비활성화(Disabled by default) 상태로 탑재되도록 처리하여 불필요한 홈어시스턴트 레코더 DB 용량 낭비를 사전에 예방했습니다. (사용자가 원할 시 구성요소 상세 페이지에서 간편하게 다시 활성화 가능)
-
----
-
-## 🚀 [v1.0.2] - 2026-05-18 (임의 MAC 자동 감지, 스캔 간격 커스텀, 초정밀 실시간-웹 이원화 수집 및 재실 옵션 설명 개편)
-
-이 버전은 사용자가 직접 설정할 수 있는 감지 성능 커스텀 옵션과 공유기 부하를 혁신적으로 차단하는 지능형 스로틀러 격리 아키텍처가 전격 반영된 v1.0.2 메이저 업데이트 버전입니다. 재실 반응 속도는 비약적으로 향상시키고, 기기 설정 시 실수 방지를 위한 임의 MAC 시각적 경고 감지 기능이 새롭게 탑재되었습니다.
-
-### 🛡️ 사설 및 임의 MAC 주소(Randomized MAC) 실시간 경고 감지 기능 신설
-* **IEEE 표준 기반 자동 판별**: 첫 번째 바이트의 두 번째 16진수 문자가 `2, 6, A, E` 대역인 사설/임의 MAC 주소(LAA)를 자동으로 판별하는 검증 헬퍼를 추가했습니다.
-* **기기 선택 화면 경고 라벨 적용**: 최초 설정(Config Flow) 및 옵션 변경(Options Flow) 화면에서 임의 MAC 주소를 쓰는 기기에 **`[임의 MAC / Private MAC]`** 경고 라벨을 표시하여, 유저가 스마트폰에서 실제 기기 고유 MAC 사용으로 설정을 바꾸어야 함을 한눈에 쉽게 알 수 있도록 UX를 개선했습니다.
-
-### ⏱️ 재실 센서 수집 및 감지 간격(scan_interval) 커스텀화
-* **초 단위 주동적 제어 옵션 신설**: 최초 연동(Config Flow) 및 구성 변경(Options Flow) UI 화면에 사용자가 직접 갱신 주기(초)를 선택 입력할 수 있는 필드를 추가했습니다.
-* **동적 리로드 연동**: 주기를 설정하고 저장하는 즉시 통합구성요소가 핫 리로드(Hot-reload)되어 공유기 상태 수집 간격이 실시간으로 반영됩니다.
-
-### ⚡ 실시간 재실 감지와 웹 상태 센서 수집 주기 격리/이원화 최적화
-* **5초 지능형 스로틀러 탑재**: 사용자가 재실 기민성을 위해 주기를 1~3초로 극도로 타이트하게 가져가더라도, 무거운 시스템/포트/무선 설정 데이터 수집은 **최소 5초 주기로 스로틀링되어 작동**하도록 독립시켰습니다.
-* **0초 반응 제어 바이패스**: 5초 대기 상태 중이라도 사용자가 대시보드에서 스위치나 셀렉트 제어 조작을 발생시키면, 대기 시간 없이 즉각 강제 동기화 갱신이 진행되어 최고 수준의 반응 속도를 제공합니다.
-* **공유기 하드웨어 보호**: 잦은 CGI 호출 오버헤드를 원천적으로 차단하여, 저사양 공유기 기종에서도 CPU 락이나 연결 순단 걱정 없이 안전하게 상생할 수 있도록 설계했습니다.
-
-### ✍️ 모호한 재실 옵션 설명 직관적 다국어 개편
-* **consider_home 번역 전격 개선**: 기기 신호 유실 시 외출로 판정하기 전에 대기하는 유예 시간(`consider_home`)의 한글 및 영문 설명을 직관적으로 다듬었습니다.
-  * **한글**: `"재접속 대기 시간 (초)"` ➡️ **`"외출(not_home) 판단 지연 시간 (초)"`**
-  * **영어**: `"Consider home wait time (seconds)"` ➡️ **`"Delay before considering not_home (seconds)"`**
-* **안전하고 친절한 UX**: 이를 통해 일시적인 신호 단절 시 발생하는 재실 플래핑 오작동 방지용 지연 시간이라는 본래 기능을 한눈에 이해하고 쉽게 관리할 수 있도록 개선했습니다.
-
----
-
-## 🚀 [v1.0.1] - 2026-05-18 (구성옵션 저장 정상화, 제외 기기 자동 삭제 및 알림 다국어/영어 로깅 완성)
-
-이 버전은 공식 배포되는 1.0.1 버전입니다. 구성옵션(Options Flow) 수정 시 변경한 기기 목록이 유실되지 않고 안전하게 저장되도록 개선하며, 체크 해제되어 추적에서 제외된 기기의 재실 센서 엔티티를 홈어시스턴트 레지스트리(Entity Registry)에서 즉시 완전히 지워주는 스마트 클린업 패치입니다. 추가로, 홈어시스턴트의 모든 영구/지속 알림을 번역 파일 기반으로 동작하도록 전면 마이그레이션하여 영어 및 한국어 현지화 완성도를 극대화하고 시스템 내부 로그는 표준 영문으로 리팩토링했습니다.
-
-### 👥 재실 센서 관리 보강 및 엔티티 자동 삭제/클린업
-* **구성옵션 저장 메커니즘 정상화**: 옵션 저장(`_save_config`) 시 빈 딕셔너리로 설정이 초기화되어 상태 저장이 원활하게 이루어지지 않던 Core 오동작 버그를 완벽하게 고쳤습니다. 이제 선택 및 고려시간 설정 상태가 정확하고 완벽하게 기록됩니다.
-* **추적 기기 이름 보존 정책 수립**: 재실 센서를 아무것도 선택하지 않거나 특정 기기를 체크 해제하더라도 기존에 입력한 기기 이름 데이터(`device_map`)를 메모리에서 날려버리지 않고 보존합니다. 이를 통해 나중에 다시 마이너 변경을 원할 때 기기 MAC 주소나 별명을 수동으로 재입력할 번거로움 없이 클릭(체크)만으로 즉시 재등록할 수 있습니다.
-* **불필요/제외 센서 즉각 은퇴**: 사용자가 구성 옵션에서 특정 기기를 체크 해제했을 때, 해당 기기의 `device_tracker` 엔티티가 홈어시스턴트 내부에서 "사용 불가능" 또는 "복구됨" 형태로 지저분하게 남지 않도록 **Entity Registry** 수준에서 즉시 완전 삭제(`async_remove`)합니다.
-
-### 🌐 번역 파일(JSON) 기반 알림(Persistent Notification) 시스템 구축 & 영문 로깅 표준화
-* **번역 파일 기반의 완전한 로컬라이징**: 기존 파이썬 파일에 하드코딩되었던 알림 타이틀과 긴 문구들을 모두 `en.json` 및 `ko.json`으로 완전히 분리하여 Home Assistant 번역 프레임워크 규격에 맞게 동적 바인딩 처리했습니다.
-* **시스템 로깅 표준 영문 통일**: 시스템 로그(`_LOGGER`)를 개발 및 분석 도구 표준에 맞춰 모두 전문적이고 표준화된 영문 메시지로 변환했습니다.
-
----
-
-## 🚀 [v1.0.0] - 2026-05-17 (공식 정식 첫 릴리즈 - 라이브 테스트 안정화 통합 버전)
-
-이 버전은 ipTIME 공유기 통합 구성요소의 기념비적인 첫 공식 정식 메이저 출시 버전입니다. 기존 SNMP의 성능 한계를 극복하고 최신 AX 시리즈 공유기 및 베타 UI 환경까지 아우르는 초고성능 JSON-RPC (Web API) 전용 아키텍처로 완전히 탈바꿈했습니다. 개발 과정에서의 실물 현장 라이브 검증을 통해 얻은 다양한 세션 유지, DoS 보안, 무선 엔티티 다이어트 패치가 모두 이 최초 공식 버전에 완전히 통합되어 제공됩니다.
-
-### 🔒 로그인 세션 및 펌웨어 API 통신 안정화 (핫픽스 통합)
-* **SameSite=Strict 제약 수동 파싱 극복**: EFM ipTIME 공유기가 로그인(`session/login`) 성공 시 내려주는 `efm_session_id` 쿠키가 `SameSite=Strict` 옵션으로 인해 aiohttp ClientSession의 자동 `CookieJar`에 누락되는 치명적 문제를 포착하고 수동 추출 및 강제 주입 루틴을 도입해 세션 끊김을 원천 해결했습니다.
-* **WireGuard VPN 조회 및 조회 필드 맵핑 무결성**: 펌웨어 API가 내려주는 실물 WireGuard 데이터의 활성화 여부 키(`active` -> `run`)와 IP 주소 키(`address` -> `ip`)를 홈어시스턴트 규격에 맞춰 무결하게 트랜스폼 및 매핑하는 가공기를 이식했습니다.
-
-### 📡 무선(Wi-Fi) 센서 최적화 및 엔티티 다이어트
-* **Wi-Fi SSID(BSS) 개별 토글 스위치**: Wi-Fi 대역(2.4G / 5G / 6G) 제어 시 IoT 기기의 순단을 예방하고 전체 무선이 중단되지 않도록 SSID 단위 개별 토글 처리를 적용했습니다.
-* **중복 엔티티 다이어트**: 무선 제어 스위치가 온/오프 상태뿐 아니라 밴드, SSID, 보안 방식, 숨김 여부 등 모든 속성을 완벽히 제공하므로, 기능이 중첩되던 Wi-Fi 센서 엔티티를 삭제하고 코드를 축소하여 로딩 성능을 대폭 끌어올렸습니다.
-
-### 🛡️ DoS/보안 제어 8종 실시간 비활성화 감지 및 한글 경고/설명 알림
-* **8종 보안 스위치 엔티티**: 원격 관리, CSRF, ARP Virus, Inbound Ping 등 8종의 보안 제어 스위치를 개별 엔티티로 제공합니다.
-* **보안 기능 비활성화 실시간 감지 알림**: 8종 핵심 보안 옵션 중 켜져 있던 옵션이 꺼졌을 때 이를 실시간으로 추적하여 홈어시스턴트 지속 알림(`persistent_notification`)을 자동으로 생성합니다.
-* **친절한 한글 설명 및 위험성 안내**: 경고 알림창에 **각 보안 기능의 한글 기능 개요**와 **비활성화 시 노출되는 잠재적 취약 위험성(🔴)**을 친절히 안내하여 스마트홈의 자가 보안 대처 능력을 혁신적으로 높였습니다.
-* **GeoIP 보안 정책 제어**: GeoIP 정책 설정 셀렉터 및 GeoIP 차단 누적 건수 감시 센서를 구현했으며, 국가 허용 모드 선택 시 본인이 차단되는 락아웃(Lockout) 사고 방지를 위한 대한민국 코드('kr') 강제 주입 안전장치를 기본 적용했습니다.
-
-### ⚠️ 중요: 브레이킹 체인지 (Breaking Changes)
-* **엔티티 ID 중복 `iptime` 접두사 정리**:
-  * 홈어시스턴트 기기명과 개별 엔티티 명칭이 결합될 때 `iptime`이 중복 생성되는 현상(예: `binary_sensor.iptime_ax3000q_iptime_lan_port_3_status`)을 수정했습니다.
-  * 모든 엔티티의 이름에서 불필요한 `ipTIME ` 접두사를 제거하여 더 정갈한 ID(예: `binary_sensor.iptime_ax3000q_lan_port_3_status`)로 생성됩니다.
-  * **기존 사용자 주의**: 통합 구성요소 업데이트 후 기존에 설정해둔 **러브레이스 대시보드 카드** 및 **자동화 스크립트(Automation)**의 엔티티 ID가 변경될 수 있으므로, 새로운 깔끔한 ID로 대상을 한 번 갱신해 주시기 바랍니다.
-
-### 💻 코어 모니터링 텔레메트리
-* **JSON-RPC 웹 API 기반 수집 일원화**: 복잡한 SNMP 설정 및 추가 모듈 활성화 요구를 완벽히 제거하고 오직 관리자 계정 정보만으로 모든 상태를 동기화합니다.
-* **코어 시스템 센서**: 공유기 가동 시간(Uptime), 공유기 모델명 정규화(대문자), 펌웨어 버전(최신 버전 실시간 비교 비교), WAN IP 및 MAC 주소, Primary/Secondary DNS 센서를 노출합니다.
-* **네트워크 포트 실시간 시각화**: WAN 및 LAN 1~4 포트의 연결 상태를 `connectivity` 디바이스 클래스의 이진 센서(`binary_sensor`)로 구현하였으며, 연결 여부에 따라 `mdi:ethernet` 및 `mdi:ethernet-off` 아이콘이 유기적으로 토글됩니다.
+- Initial stable release using the ipTIME local JSON-RPC web API.
+- Added router monitoring, Wi-Fi controls, security controls, and presence tracking.

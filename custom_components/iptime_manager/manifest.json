@@ -8,8 +8,8 @@
     "dependencies": [],
     "documentation": "https://github.com/plplaaa2/iptime_manager",
     "integration_type": "hub",
-    "issue_tracker": "https://github.com/plplaaa2/iptime_manager/issues",
     "iot_class": "local_polling",
+    "issue_tracker": "https://github.com/plplaaa2/iptime_manager/issues",
     "requirements": [],
     "ssdp": [
         {
