@@ -8,6 +8,7 @@
     ],
     "requirements": [],
     "dependencies": [],
+    "integration_type": "hub",
     "iot_class": "local_polling",
     "version": "1.0.7",
     "config_flow": true,

@@ -82,8 +82,9 @@ EFM ipTIME 공유기 연동을 위한 Home Assistant 통합 구성요소입니�
 스마트홈의 심장인 홈 네트워크의 안정성을 위해 다음과 같이 설계를 개편했습니다. 
 설정 변경 시 **공유기 하드웨어 칩셋의 물리적인 즉시 강제 재부팅을 유발하여 집안 전체 네트워크 마비 및 스마트홈 연동 단절을 초래**하는 다음 두 엔티티는 안전을 위해 **엔티티 목록에서 영구적으로 제외**되었습니다.
 
-1. **IPTV 모드 제어 셀렉터** (`select.iptime_iptv_mode` 영구 삭제)
-2. **인터넷 공유기능(NAT/Keep Connection) 스위치** (`switch.iptime_keep_connection` 영구 삭제)
+1. **IPTV 모드 제어 셀렉터**
+2. **인터넷 공유기능(NAT/Keep Connection) 스위치** 
+3. **EasyMesh 운영 모드(cotroller/agent) 변경 스위치** 
 
 > [!IMPORTANT]
 > 본 조치는 공유기 하드웨어의 설계적 한계로 인한 연동 끊김 및 기기 락 현상을 예방하기 위해 취해진 안전 조치입니다. 해당 설정 변경이 필요하신 경우 반드시 공유기의 웹 관리자 화면(192.168.0.1)에 직접 접속하여 수동으로 변경해 주시기 바랍니다.
@@ -103,8 +104,7 @@ EFM ipTIME 공유기 연동을 위한 Home Assistant 통합 구성요소입니�
 2. `https://github.com/plplaaa2/iptime_manager` 추가 (Category: Integration)
 3. **ipTIME Manager** 설치 후 Home Assistant 재시작
 
-### 3. 통합 구성요소 설정 (Config Flow) 및 옵션 변경 (Options Flow)
-* **SNMP 설정 불필요**: 복잡한 SNMP 설정이나 추가 패키지 설치 없이 즉시 작동합니다.
+### 3. 최초 통합구성요소 등록 및 옵션 변경
 * **최초 등록 단계 (Config Flow)**:
   * **공유기 주소(URL)**: 공유기 접속 IP 주소 (예: `http://192.168.0.1`. 만약 80번 포트가 아닌 외부 원격 관리 포트를 설정해 두었다면 `http://192.168.0.1:8080`과 같이 포트 번호를 포함하여 작성)
   * **계정 정보**: 공유기 웹 관리자 로그인 아이디 및 비밀번호
