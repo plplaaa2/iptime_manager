@@ -350,24 +350,37 @@ class IPTimeAPI:
             if wg_server.get("result") is not None:
                 wg_data = wg_server["result"]
                 if isinstance(wg_data, dict):
-                    peers = wg_data.get("peers", wg_data.get("peer", wg_data.get("clients", [])))
+                    # Firmware 16 exposes peer definitions through a separate endpoint.
+                    # Related files: sensor.py, switch.py.
+                    peer_response = await self._async_service_json("wg/peer/show")
+                    peers = peer_response.get("result") if isinstance(peer_response.get("result"), list) else wg_data.get("peers", wg_data.get("peer", wg_data.get("clients", [])))
                     if isinstance(peers, dict):
                         peers = list(peers.values())
-                    connected_peers = 0
+                    connected_peers = None
+                    peer_count = len(peers) if isinstance(peers, list) else 0
                     if isinstance(peers, list):
+                        observed_connection = False
+                        connected_peers = 0
                         for peer in peers:
                             if not isinstance(peer, dict):
                                 continue
                             if "connected" in peer or "active" in peer:
+                                observed_connection = True
                                 connected_peers += int(bool(peer.get("connected", peer.get("active"))))
                             else:
-                                connected_peers += int(bool(peer.get("latest_handshake") or peer.get("last_handshake") or peer.get("handshake")))
+                                handshake = peer.get("latest_handshake") or peer.get("last_handshake") or peer.get("handshake")
+                                if handshake is not None:
+                                    observed_connection = True
+                                    connected_peers += int(bool(handshake))
+                        if not observed_connection:
+                            connected_peers = None
                     self.web_result["wg_server"] = {
                         "run": bool(wg_data.get("active", False)),
                         "ip": wg_data.get("address", "10.0.21.1"),
                         "subnet": "24",
                         "port": int(wg_data.get("port", 53344)),
                         "nat": bool(wg_data.get("nat", True)),
+                        "peer_count": peer_count,
                         "connected_peer_count": connected_peers,
                     }
                 else:
@@ -393,7 +406,25 @@ class IPTimeAPI:
                     "agents": easymesh_agents.get("result", {}),
                 }
             
-            band_data = wireless_band_show.get("result") or wireless_band.get("result") or []
+            # Firmware 16 separates configured values (band/show) from live state
+            # (band/info); retain both while exposing the live channel to entities.
+            band_show = wireless_band_show.get("result") or []
+            band_info = wireless_band.get("result") or []
+            info_by_band = {str(item.get("band")).lower(): item for item in band_info if isinstance(item, dict) and item.get("band")}
+            band_data = []
+            for configured in band_show:
+                if not isinstance(configured, dict):
+                    continue
+                key = str(configured.get("band")).lower()
+                merged = dict(configured)
+                live = info_by_band.get(key)
+                if live:
+                    merged.update({k: v for k, v in live.items() if k != "channel"})
+                    merged["configured_channel"] = configured.get("channel")
+                    merged["channel"] = live.get("channel", configured.get("channel"))
+                band_data.append(merged)
+            if not band_data:
+                band_data = band_info
             if wireless_info.get("result") or band_data or wireless_bss.get("result"):
                 self.web_result["wireless"] = {
                     "info": wireless_info.get("result", []),
