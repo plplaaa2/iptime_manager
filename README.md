@@ -10,6 +10,7 @@ A Home Assistant custom integration for monitoring and controlling EFM ipTIME ro
 - Router model, firmware, uptime, WAN IP, and network information
 - Wi-Fi SSID and band channel monitoring and control
 - LAN/WAN port connection and link-speed sensors
+- Actual Internet connectivity binary sensor based on an external HTTPS probe
 - Port forwarding, UPnP relay, and WireGuard server controls
 - Security settings, GeoIP policy, night LED, and auto-reboot controls
 - Presence tracking for selected connected devices
@@ -44,6 +45,7 @@ The router address is typically `http://192.168.0.1`. Use the same administrator
 
 - `sensor`: router status, firmware, WAN IP, DNS, and GeoIP information
 - `binary_sensor`: LAN/WAN port and Wi-Fi connection status
+- `binary_sensor`: physical port status and actual Internet connectivity
 - `switch`: Wi-Fi, security, WireGuard, port forwarding, and UPnP controls
 - `select`: Wi-Fi channel, GeoIP policy, night LED, and auto-reboot settings
 - `button`: router reboot

@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.8] - Unreleased
+## [1.0.8] - 2026-09-17
 
 - Added HACS validation and Hassfest GitHub Actions.
 - Updated HACS metadata to comply with the current schema.
@@ -9,6 +9,10 @@
 - Added a concise Korean README as `README.ko.md`.
 - Updated integration brand images to 256×256 PNG files.
 - Fixed translation files to match the Home Assistant translation schema.
+
+- Added an Internet Connectivity binary sensor using an external HTTPS probe every 5 seconds.
+- Added firmware 16 compatibility for live Wi-Fi channel state and WireGuard peer discovery.
+- Kept English and Korean entity documentation aligned with the new sensor.
 
 ## [1.0.7] - 2026-08-05
 

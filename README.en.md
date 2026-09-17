@@ -3,7 +3,7 @@
 [🇺🇸 English Version](./README.en.md) | [🇰🇷 한국어 버전](./README.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.0.7-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.0.8-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 Home Assistant integration for EFM ipTIME routers. Supporting models with the 3rd-generation responsive IUX (including AX-series) and the latest Flutter-based Beta UI, it operates entirely on a JSON-RPC (Web API) architecture for lightweight, real-time monitoring and system control without complex SNMP configuration.
@@ -69,7 +69,7 @@ Home Assistant integration for EFM ipTIME routers. Supporting models with the 3r
 | :--- | :--- |
 | **`device_tracker`** | Real-time presence detection (Home/Away) for selected devices by MAC address |
 | **`sensor`** | Router Uptime, Model Name, Firmware Version (with update status), WAN IP & MAC Address, Primary/Secondary DNS, GeoIP Block Count, etc. |
-| **`binary_sensor`** | WAN & LAN 1-4 Physical Link Status (`connectivity` device class supported) |
+| **`binary_sensor`** | WAN & LAN 1-4 Physical Link Status and actual Internet Connectivity (`connectivity` device class supported) |
 | **`switch`** | SSID-level Wi-Fi toggles, WireGuard Server toggle, Auto-Reboot toggle, Port Forwarding toggle, UPnP Relay toggle, **[8 Security Controls]** Remote Admin/CSRF/ARP Virus/Ping Block, etc. |
 | **`select`** | Night LED Mode, Auto-Reboot Day, GeoIP Policy Settings, **[New] Wi-Fi Band Channel Selector (`select.iptime_wifi_channel_...`)** |
 | **`button`** | Router Safe Reboot Trigger (`button.reboot`) |

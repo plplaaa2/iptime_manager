@@ -10,6 +10,7 @@ EFM ipTIME 공유기를 로컬 네트워크를 통해 Home Assistant에서 모�
 - 공유기 모델, 펌웨어, 가동 시간, WAN IP 및 네트워크 정보
 - Wi-Fi SSID와 대역별 채널 상태 확인 및 제어
 - LAN/WAN 포트 연결 상태와 링크 속도 센서
+- 외부 HTTPS 연결을 기준으로 한 실제 인터넷 연결 상태 바이너리 센서
 - 포트포워딩, UPnP 릴레이, WireGuard 서버 제어
 - 보안 설정, GeoIP 정책, 나이트 LED, 자동 재부팅 제어
 - 선택한 연결 기기의 재실 상태 추적
@@ -43,7 +44,7 @@ EFM ipTIME 공유기를 로컬 네트워크를 통해 Home Assistant에서 모�
 ## 제공 엔티티
 
 - `sensor`: 공유기 상태, 펌웨어, WAN IP, DNS, GeoIP 정보
-- `binary_sensor`: LAN/WAN 포트 및 Wi-Fi 연결 상태
+- `binary_sensor`: LAN/WAN 물리 링크 및 실제 인터넷 연결 상태
 - `switch`: Wi-Fi, 보안, WireGuard, 포트포워딩, UPnP 제어
 - `select`: Wi-Fi 채널, GeoIP 정책, 나이트 LED, 자동 재부팅 설정
 - `button`: 공유기 재부팅
