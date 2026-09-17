@@ -146,6 +146,17 @@ class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEnti
     def extra_state_attributes(self) -> dict[str, Any]:
         return {"probe": "HTTPS connectivity check", "interval_seconds": 5}
 
+    @property
+    def device_info(self) -> dict[str, Any]:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        model = web_data.get("model", "ipTIME Router")
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": model,
+            "manufacturer": "EFM Networks",
+            "model": model,
+        }
+
 
 def _get_mesh_ssids(mesh_data: Dict[str, Any]) -> dict[str, str]:
     """Extract only EasyMesh SSIDs and never expose credentials."""
