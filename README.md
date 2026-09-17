@@ -1,6 +1,6 @@
 # ipTIME Manager for Home Assistant
 
-[🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.md)
+[🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 ![version](https://img.shields.io/badge/version-v1.0.8-blue.svg?style=for-the-badge)
