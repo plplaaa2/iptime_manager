@@ -11,8 +11,7 @@
 - Fixed translation files to match the Home Assistant translation schema.
 
 - Added an Internet Connectivity binary sensor using an external HTTPS probe every 5 seconds.
-- Added firmware 16 compatibility for live Wi-Fi channel state and WireGuard peer discovery.
-- Kept English and Korean entity documentation aligned with the new sensor.
+- fixed live Wi-Fi channel state and WireGuard peer discovery.
 
 ## [1.0.7] - 2026-08-05
 

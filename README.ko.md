@@ -1,7 +1,8 @@
 # Home Assistant용 ipTIME Manager
 
-[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-[![Latest release](https://img.shields.io/github/v/release/plplaaa2/iptime_manager?style=for-the-badge)](https://github.com/plplaaa2/iptime_manager/releases)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
+![version](https://img.shields.io/badge/version-v1.0.8-blue.svg?style=for-the-badge)
+[![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 EFM ipTIME 공유기를 로컬 네트워크를 통해 Home Assistant에서 모니터링하고 제어하는 사용자 지정 통합 구성요소입니다. 공유기의 로컬 웹 API를 사용하며 SNMP 설정이나 외부 클라우드 서비스가 필요하지 않습니다.
 
