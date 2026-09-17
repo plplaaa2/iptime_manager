@@ -1,69 +1,126 @@
 # ipTIME Manager for Home Assistant
 
-[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-[![Latest release](https://img.shields.io/github/v/release/plplaaa2/iptime_manager?style=for-the-badge)](https://github.com/plplaaa2/iptime_manager/releases)
+[🇺🇸 English Version](./README.en.md) | [🇰🇷 한국어 버전](./README.md)
 
-A Home Assistant custom integration for monitoring and controlling EFM ipTIME routers over the local network. It uses the router's local web API and does not require SNMP configuration or an external cloud service.
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
+![version](https://img.shields.io/badge/version-v1.0.8-blue.svg?style=for-the-badge)
+[![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
+
+Home Assistant integration for EFM ipTIME routers. Supporting models with the 3rd-generation responsive IUX (including AX-series) and the latest Flutter-based Beta UI, it operates entirely on a JSON-RPC (Web API) architecture for lightweight, real-time monitoring and system control without complex SNMP configuration.
+
+---
 
 ## Features
 
-- Router model, firmware, uptime, WAN IP, and network information
-- Wi-Fi SSID and band channel monitoring and control
-- LAN/WAN port connection and link-speed sensors
-- Actual Internet connectivity binary sensor based on an external HTTPS probe
-- Port forwarding, UPnP relay, and WireGuard server controls
-- Security settings, GeoIP policy, night LED, and auto-reboot controls
-- Presence tracking for selected connected devices
-- Home Assistant events for WAN, security, and physical port changes
+### 1. Smart Caching Engine
+* **Reduced Overhead**: Incorporates a memory caching layer to prevent excessive API queries.
+* **Lifecycle Management**: Static parameters (e.g., model name) are queried once and permanently cached. Semi-static configurations (DNS, DoS, UPnP, Reboot schedules, WireGuard states) are cached for 5 minutes to 1 hour.
+* **Instant Mutation Invalidation**: Modifying a switch or selection immediately invalidates the corresponding memory cache, pushing changes to the router and forcing an immediate background update for instant feedback.
 
-Available features depend on the router model and firmware.
+### 2. WAN Status, Public IP, Security Alerts & Firmware Update Detections (1.0.4 Advanced)
+* **Dual-Notification Pipeline**: Triggers a dashboard persistent notification and simultaneously fires real-time custom event bus payloads (`iptime_manager_wan_alert`) when WAN disconnection or public IP change occurs.
+* **Instant Security Threat Detections**: Fires a dedicated custom security event (`iptime_manager_security_alert`) immediately when high-risk changes occur (such as disabling GeoIP, turning off CSRF defense, shutting down DoS protectors, or disabling BSS Wi-Fi SSIDs), enabling instant Telegram/mobile push setups.
+* **Router Firmware Update Notifications (1.0.4 New)**: Compares the currently installed firmware version with the latest remote version. If an update is available, it automatically creates a dashboard persistent notification containing a clickable shortcut link directly to the router's settings page, and automatically dismisses the notification once the update is completed.
 
-## Installation
+### 3. Wi-Fi Band-Level Optimal Channel Control & Real-time Active Channel (1.0.3 New)
+* **Optimal Channel Selectors**: Manages wireless active channels directly from the Home Assistant dashboard selectors (`select.iptime_wifi_channel_...`) for 2.4GHz, 5GHz, and 6GHz bands.
+* **Smart Caching & Background Scans**: Introduces 1-hour smart caching and background task engines to fetch available channels gracefully, preventing synchronous connection overheads from freezing the Home Assistant UI.
+* **Active Channel Attribute Binding**: Attaches active operational channel numbers directly onto the state attributes (`channel` field) of the Wi-Fi toggle switches.
 
-### HACS
+### 4. SSID-Level Wi-Fi Switches
+* **SSID Toggles**: Provides switch (`switch`) entities to toggle individual SSIDs on 2.4G, 5G, and 6G bands.
+* **Network Stability**: Operating at the BSS (SSID) level rather than restarting the entire wireless chipset avoids dropping connections on other smart home IoT devices.
+
+### 4. 3rd-Gen IUX Security Controls & GeoIP Lockout Prevention
+* **8 Security Switches**: Exposes 8 core security settings—including Remote Admin Port, CSRF block, and ARP Virus shield—as individual switches.
+* **Disabled Option Alerts**: Triggers a dashboard alert with concise explanations of security functions and specific risks when any of the 8 safety controls is turned off.
+* **GeoIP Safety Guard**: Supports GeoIP block counts and policy selection. Automatically force-adds the South Korea ('kr') country code if the allow list is empty when switching to Country Allow mode, preventing administrative lockout.
+
+### 5. NAT & Port Forwarding / UPnP Controls
+* **Dashboard Toggles**: Provides switches to activate or deactivate Port Forwarding and UPnP Relay directly from the Home Assistant UI.
+
+### 6. WireGuard VPN Server Control
+* **Server Execution Switch**: Manages the execution state of the built-in WireGuard VPN server.
+* **API Compliance**: Transmits only the 5 schema fields (`run`, `ip`, `subnet`, `port`, `nat`) required by the firmware validation schema to prevent API runtime errors.
+
+### 7. Night LED & Auto Reboot Schedule Preservation
+* **Schedule Selectors**: Features selectors for Night LED modes and Auto-Reboot days.
+* **Memory Retention**: Preserves previously configured custom times (reboot time, night LED schedule) in memory so that toggling option switches does not force-reset them to default firmware values.
+
+### 8. Smart Presence Detection & Clean Entity Deletion
+* **Device Preservation**: Retains device MAC addresses and custom names in memory even if they are unchecked in the options flow, allowing easy reactivations.
+* **Registry Cleanup**: Removes unchecked devices immediately from Home Assistant's Entity Registry (`async_remove`), preventing inactive sensors from cluttering the dashboard.
+
+### 9. Dual-Interval Intelligent Polling & Custom scan_interval
+* **Custom Polling Rates**: Allows users to specify the presence scan frequency (seconds) during setup or via the options flow.
+* **5-Second Isolation (Safety Throttling)**: Even with rapid presence scans (e.g., every 1–3 seconds), heavier web queries (SSID, DNS, system details) are throttled to a minimum 5-second interval to avoid router CPU lockups.
+* **Zero-Delay Mutative Actions**: Dashboard switch toggles bypass the 5-second throttling interval to execute instantly and fetch fresh states immediately.
+
+### 10. Physical Port Link State Custom Events (1.0.3 New)
+* **Link State Change Tracking**: Monitors physical cable connections (Link Up / Down) on LAN 1–4 and WAN ports.
+* **Reduced Overhead (No Alert Clutter)**: Avoids triggering excessive persistent notification popups on the dashboard. Instead, it fires backend custom events (`iptime_manager_port_connected`, `iptime_manager_port_disconnected`) for silent, high-performance automation.
+* **Rich Payload Fields**: Appends comprehensive details—including port type (lan/wan), port number, display label, and physical negotiated connection speed (Gbps/Mbps)—directly onto the event data, fully supporting smart device power controls or alerts.
+
+---
+
+## Entity Summary
+
+| Platform | Features & Entities |
+| :--- | :--- |
+| **`device_tracker`** | Real-time presence detection (Home/Away) for selected devices by MAC address |
+| **`sensor`** | Router Uptime, Model Name, Firmware Version (with update status), WAN IP & MAC Address, Primary/Secondary DNS, GeoIP Block Count, etc. |
+| **`binary_sensor`** | WAN & LAN 1-4 Physical Link Status and actual Internet Connectivity (`connectivity` device class supported) |
+| **`switch`** | SSID-level Wi-Fi toggles, WireGuard Server toggle, Auto-Reboot toggle, Port Forwarding toggle, UPnP Relay toggle, **[8 Security Controls]** Remote Admin/CSRF/ARP Virus/Ping Block, etc. |
+| **`select`** | Night LED Mode, Auto-Reboot Day, GeoIP Policy Settings, **[New] Wi-Fi Band Channel Selector (`select.iptime_wifi_channel_...`)** |
+| **`button`** | Router Safe Reboot Trigger (`button.reboot`) |
+| **`Event Bus`** | **[New] Port Connection/Disconnection Events (`iptime_manager_port_connected` / `_disconnected`), Security Alerts (`iptime_manager_security_alert`), WAN Port/IP Alerts (`iptime_manager_wan_alert`)** |
+
+---
+
+## Safety-First Integration Design
+
+To maintain smart home connectivity, actions that trigger a physical hardware-level reboot—causing complete network outages—have been permanently retired from the integration entities:
+
+1. **IPTV Mode Selector** (`select.iptime_iptv_mode` permanently removed)
+2. **Internet Sharing Switch** (`switch.iptime_keep_connection` permanently removed)
+
+> [!IMPORTANT]
+> This safety measure prevents connectivity lockouts due to hardware limitations. If you must adjust IPTV or NAT settings, please perform them manually via the router's web admin UI (192.168.0.1).
+
+---
+
+## Installation & Configuration
+
+### 1. Automatic Installation (Recommended)
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=plplaaa2&repository=iptime_manager)
 
-1. Open the link above, or search for `ipTIME Manager` in HACS.
-2. Install the integration.
-3. Restart Home Assistant.
+Click the button above to add this repository directly inside HACS, install **ipTIME Manager**, and restart Home Assistant.
 
-### Manual
+### 2. Manual Installation
+1. Go to **HACS** -> **Integrations** -> click three dots in top-right -> select **Custom repositories**
+2. Paste `https://github.com/plplaaa2/iptime_manager` and select **Integration** category
+3. Install **ipTIME Manager** and restart Home Assistant
 
-Copy `custom_components/iptime_manager` into the `config/custom_components/` directory of your Home Assistant installation, then restart Home Assistant.
+### 3. Integration Setup (Config Flow) & Configuration Tuning (Options Flow)
+* **No SNMP Required**: SNMP activation or complex MIB/OID matching is completely unnecessary.
+* **Initial Setup (Config Flow)**:
+  * **Router URL**: Gateway IP address (e.g., `http://192.168.0.1`. If using a non-standard remote admin port, ensure it is appended: `http://192.168.0.1:8080`).
+  * **Credentials**: Router web administrator login ID and password.
+  * **Scan Interval**: Frequency of presence scanning in seconds (default **5 seconds**. Lower values like 1–3s are fully supported).
+* **Tweak Parameters Later (Options Flow)**: Hit the `Configure` button on the integration card anytime to tune details:
+  * **Presence Target Device Mapping**: Select from a dynamically discovered list of wireless clients to spawn dedicated `device_tracker` entities.
+  * **Delay before not_home (consider_home)**: Grace wait time (seconds) to prevent presence flipping/flapping during brief Wi-Fi dropouts (default **180 seconds** recommended).
+  * **RSSI Cutoff Threshold (RSSI Limit)**: Standard RSSI signal power level (dBm) below which a client is declared Away (default **-90 dBm**).
 
-## Configuration
+---
 
-1. Go to **Settings → Devices & services → Add integration**.
-2. Search for `ipTIME Manager`.
-3. Enter the router address and administrator credentials.
-4. Configure the scan interval and tracked devices if needed.
+## Support Me
+If this project saves you time and helps you manage your smart home, consider supporting development with a warm cup of coffee!
 
-The router address is typically `http://192.168.0.1`. Use the same administrator account as the router's web management interface.
+<a href='https://ko-fi.com/plplaaa2' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://cdn.ko-fi.com/cdn/kofi1.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
-## Entities
-
-- `sensor`: router status, firmware, WAN IP, DNS, and GeoIP information
-- `binary_sensor`: LAN/WAN port and Wi-Fi connection status
-- `binary_sensor`: physical port status and actual Internet connectivity
-- `switch`: Wi-Fi, security, WireGuard, port forwarding, and UPnP controls
-- `select`: Wi-Fi channel, GeoIP policy, night LED, and auto-reboot settings
-- `button`: router reboot
-- `device_tracker`: presence for selected devices
-
-## Important notes
-
-- Supported entities and settings vary by ipTIME model and firmware.
-- Changing router settings may temporarily interrupt network connectivity.
-- IPTV mode, NAT/Keep Connection, and EasyMesh operating mode controls are intentionally not exposed because they may trigger a router restart.
-- Change remote-management and security settings carefully.
-
-## Support
-
-When reporting an issue, include the router model, firmware version, Home Assistant version, and relevant logs. Remove passwords, tokens, and other sensitive information before posting.
-
-[Open an issue on GitHub](https://github.com/plplaaa2/iptime_manager/issues)
+---
 
 ## License
-
-MIT License
+This project is licensed under the **MIT License**. Built for inter-operability via reverse-engineered local HTTP/JSON-RPC protocols, it contains legal exemptions and liability limitations detailed in the LICENSE file.
