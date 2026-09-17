@@ -148,7 +148,7 @@ class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEnti
 
     @property
     def icon(self) -> str:
-        return "mdi:internet" if self.is_on else "mdi:internet-off"
+        return "mdi:web" if self.is_on else "mdi:web-off"
 
     @property
     def device_info(self) -> dict[str, Any]:
