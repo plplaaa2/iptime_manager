@@ -133,7 +133,7 @@ class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEnti
     def __init__(self, coordinator, entry) -> None:
         super().__init__(coordinator)
         self._entry = entry
-        self._attr_name = "인터넷 연결 상태" if str(coordinator.hass.config.language).startswith("ko") else "Internet Connectivity"
+        self._attr_name = "Internet Connectivity"
         self._attr_unique_id = f"{entry.entry_id}_internet_connectivity"
         self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
         self._attr_icon = "mdi:internet"
