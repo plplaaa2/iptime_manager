@@ -147,6 +147,10 @@ class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEnti
         return {"probe": "HTTPS connectivity check", "interval_seconds": 5}
 
     @property
+    def icon(self) -> str:
+        return "mdi:web" if self.is_on else "mdi:web-off"
+
+    @property
     def device_info(self) -> dict[str, Any]:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         model = web_data.get("model", "ipTIME Router")
