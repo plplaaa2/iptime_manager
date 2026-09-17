@@ -95,6 +95,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entities = []
 
     entities.append(IPTimeEasyMeshBinarySensor(coordinator, entry))
+    entities.append(IPTimeInternetConnectivityBinarySensor(coordinator, entry))
 
     mesh_agents = _get_mesh_agents(data.get("web", {}).get("easymesh", {}))
     for agent in mesh_agents:
@@ -124,6 +125,26 @@ def _get_mesh_agents(mesh_data: Dict[str, Any]) -> list[Dict[str, Any]]:
     if not isinstance(raw_agents, list):
         return []
     return [agent for agent in raw_agents if isinstance(agent, dict)]
+
+
+class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEntity):
+    """Actual external Internet reachability, separate from WAN link state."""
+
+    def __init__(self, coordinator, entry) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_name = "인터넷 연결 상태" if str(coordinator.hass.config.language).startswith("ko") else "Internet Connectivity"
+        self._attr_unique_id = f"{entry.entry_id}_internet_connectivity"
+        self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+        self._attr_icon = "mdi:internet"
+
+    @property
+    def is_on(self) -> bool:
+        return bool((self.coordinator.data or {}).get("web", {}).get("internet_connected", False))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"probe": "HTTPS connectivity check", "interval_seconds": 5}
 
 
 def _get_mesh_ssids(mesh_data: Dict[str, Any]) -> dict[str, str]:

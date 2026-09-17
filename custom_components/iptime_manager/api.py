@@ -208,6 +208,15 @@ class IPTimeAPI:
             
         return True
 
+    async def async_check_internet(self) -> bool:
+        """Check real external reachability independently of WAN link/IP state."""
+        try:
+            session = await self._async_get_session()
+            async with session.get("https://connectivitycheck.gstatic.com/generate_204", timeout=3) as response:
+                return response.status in (200, 204)
+        except Exception:
+            return False
+
     async def async_get_web_data(self) -> bool:
         """웹 UI에서 노출되는 시스템/포트 정보를 수집한다. (연결될 파일: coordinator.py)"""
         # 요약: 스마트 캐싱 엔진을 적용하여 실시간 데이터는 5초마다 수집하고, 정적 설정 데이터는 5분 캐시 처리한다.
