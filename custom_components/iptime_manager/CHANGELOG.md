@@ -1,13 +1,13 @@
 # Changelog
 
-## Unreleased - dev (2026-09-19)
+## [1.0.8] - beta2 (2026-09-19)
 
 - Replaced WireGuard peer count with the latest peer name and handshake time.
 - Separated WAN/LAN physical Port sensors from traffic Status sensors.
 - Renamed Internet Connectivity to Internet Status and excluded detected hub/AP mode.
 - Moved reboot into Diagnostics and presence trackers into the main entity section.
 
-## [1.0.8] - 2026-09-17
+## [1.0.8] - beta1 2026-09-17
 
 - Added Internet Connectivity monitoring.
 - Fixed Wi-Fi channel reporting and WireGuard peer discovery.
