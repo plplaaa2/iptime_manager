@@ -9,6 +9,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
 )
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers import entity_registry as er
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
@@ -95,7 +96,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entities = []
 
     entities.append(IPTimeEasyMeshBinarySensor(coordinator, entry))
-    entities.append(IPTimeInternetConnectivityBinarySensor(coordinator, entry))
+    # Summary: Omit Internet Status on hubs/APs and remove its obsolete registry entry.
+    # Related files: api.py, coordinator.py.
+    monitor_enabled = data.get("web", {}).get("internet_monitor_enabled")
+    if monitor_enabled is True:
+        entities.append(IPTimeInternetConnectivityBinarySensor(coordinator, entry))
+    elif monitor_enabled is False:
+        registry = er.async_get(hass)
+        entity_id = registry.async_get_entity_id("binary_sensor", DOMAIN, f"{entry.entry_id}_internet_connectivity")
+        if entity_id:
+            registry.async_remove(entity_id)
 
     mesh_agents = _get_mesh_agents(data.get("web", {}).get("easymesh", {}))
     for agent in mesh_agents:
@@ -111,6 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             port_num = port_info.get("port")
             if port_num is not None:
                 entities.append(IPTimeInterfaceBinarySensor(coordinator, entry, f"{port_type}:{port_num}", port_info=port_info))
+                entities.append(IPTimePortActivityBinarySensor(coordinator, entry, f"{port_type}:{port_num}", port_info=port_info))
 
     async_add_entities(entities)
 
@@ -133,7 +144,9 @@ class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEnti
     def __init__(self, coordinator, entry) -> None:
         super().__init__(coordinator)
         self._entry = entry
-        self._attr_name = "Internet Connectivity"
+        # Summary: Keep the entity identity while shortening its display name.
+        # Related files: coordinator.py.
+        self._attr_name = "Internet Status"
         self._attr_unique_id = f"{entry.entry_id}_internet_connectivity"
         self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
         self._attr_icon = "mdi:internet"
@@ -144,7 +157,7 @@ class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEnti
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {"probe": "HTTPS connectivity check", "interval_seconds": 5}
+        return {"probe": "HTTPS connectivity check from Home Assistant", "minimum_interval_seconds": 5}
 
     @property
     def icon(self) -> str:
@@ -303,7 +316,9 @@ class IPTimeInterfaceBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
         port_type = str(self._port_info.get("type", "port")).upper()
         port_num = self._port_info.get("port")
-        self._attr_name = f"{_display_port_name(port_type, port_num)} Status ({entry.data.get(CONF_URL)})"
+        # Summary: Preserve link entity identity while naming it after the physical port.
+        # Related files: api.py, coordinator.py.
+        self._attr_name = f"{_display_port_name(port_type, port_num)} Port"
         self._attr_unique_id = f"{entry.entry_id}_{_normalize_port_key(port_type, port_num)}_status"
         self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
@@ -390,3 +405,30 @@ class IPTimeInterfaceBinarySensor(CoordinatorEntity, BinarySensorEntity):
             "manufacturer": "EFM Networks",
             "model": model,
         }
+
+
+# Summary: Expose packet activity separately from each port's physical link.
+# Related files: api.py, coordinator.py.
+class IPTimePortActivityBinarySensor(IPTimeInterfaceBinarySensor):
+    def __init__(self, coordinator, entry, iface_name, port_info=None) -> None:
+        super().__init__(coordinator, entry, iface_name, port_info)
+        kind = self._port_info.get("type", "port")
+        num = self._port_info.get("port")
+        self._attr_name = f"{_display_port_name(kind, num)} Status"
+        self._attr_unique_id = f"{entry.entry_id}_{_normalize_port_key(kind, num)}_activity"
+        self._attr_device_class = BinarySensorDeviceClass.RUNNING
+
+    def _activity(self) -> dict:
+        return (self.coordinator.data or {}).get("web", {}).get("port_activity", {}).get(self._iface_name, {})
+
+    @property
+    def is_on(self) -> bool | None:
+        return self._activity().get("active")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {**self._activity(), "detection": "RX and TX packet activity within 30 seconds"}
+
+    @property
+    def icon(self) -> str:
+        return "mdi:lan-connect" if self.is_on else "mdi:lan-disconnect"

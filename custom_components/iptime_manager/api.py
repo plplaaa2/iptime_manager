@@ -83,6 +83,62 @@ def _latest_wireguard_handshake(peers: Any, observed_at: datetime) -> tuple:
     return latest_peer.get("name") or None, observed_at - timedelta(seconds=latest_age)
 
 
+# Summary: Track bidirectional port activity without treating idle links as failures.
+# Related files: binary_sensor.py, coordinator.py.
+def _port_activity(stats: Any, ports: Any, previous: dict, now: float) -> dict:
+    result = {}
+    if not isinstance(stats, list) or not isinstance(ports, list):
+        previous.clear()
+        return result
+    samples = {(p.get("type"), p.get("port")): p for p in stats if isinstance(p, dict)}
+    seen = set()
+    for port in ports:
+        key = (port.get("type"), port.get("port"))
+        seen.add(key)
+        sample = samples.get(key, {})
+        rx_stats, tx_stats = sample.get("rx"), sample.get("tx")
+        rx = rx_stats.get("packet") if isinstance(rx_stats, dict) else None
+        tx = tx_stats.get("packet") if isinstance(tx_stats, dict) else None
+        linked = port.get("link") not in (None, "", "null", "0", 0, False)
+        old = previous.get(key)
+        valid = all(type(value) is int and value >= 0 for value in (rx, tx))
+        state = {"active": False if not linked else None, "rx_packets_delta": None,
+                 "tx_packets_delta": None, "activity_window_seconds": 30}
+        if not valid:
+            previous.pop(key, None)
+        else:
+            current = {"rx": rx, "tx": tx, "rx_at": None, "tx_at": None, "last_activity_at": None}
+            if linked and old and rx >= old["rx"] and tx >= old["tx"]:
+                drx, dtx = rx - old["rx"], tx - old["tx"]
+                current["rx_at"] = now if drx else old["rx_at"]
+                current["tx_at"] = now if dtx else old["tx_at"]
+                state.update(rx_packets_delta=drx, tx_packets_delta=dtx)
+                current["last_activity_at"] = (
+                    datetime.now(timezone.utc).isoformat() if drx or dtx else old["last_activity_at"]
+                )
+                state["active"] = all(
+                    stamp is not None and now - stamp <= 30
+                    for stamp in (current["rx_at"], current["tx_at"])
+                )
+            previous[key] = current
+            state["last_activity_at"] = current["last_activity_at"]
+        result[f"{key[0]}:{key[1]}"] = state
+    for key in set(previous) - seen:
+        previous.pop(key)
+    return result
+
+
+# Summary: Exclude hubs/APs using WAN enable, NAT and optional WAN-port role.
+# Related files: coordinator.py, binary_sensor.py.
+def _internet_monitor_enabled(nat: Any, wan_config: Any, port_role: Any) -> bool | None:
+    enabled = wan_config.get("enable") if isinstance(wan_config, dict) else None
+    if nat is False or enabled is False or port_role == "lan":
+        return False
+    if nat is True and enabled is True:
+        return True
+    return None
+
+
 class IPTimeAPI:
     """ipTIME 공유기 API (누락 함수 복구 버전)"""
     
@@ -98,6 +154,7 @@ class IPTimeAPI:
         self._latest_firmware_version: Any = None
         self._last_caching_time = 0.0
         self._cached_model = None
+        self._port_samples: dict = {}
 
         self._url = url if "http" in url else "http://" + url
         if self._url.endswith("/"):
@@ -366,12 +423,29 @@ class IPTimeAPI:
                 if nat_config.get("result") is not None:
                     self.web_result["nat_config"] = nat_config["result"]
 
+                # Summary: Read operating mode without changing router configuration.
+                # Related files: coordinator.py, binary_sensor.py.
+                wan_config = await self._async_service_json("network/interface/wan1/config")
+                port_role = await self._async_service_json("port/role")
+                mode = _internet_monitor_enabled(
+                    nat_config.get("result"), wan_config.get("result"), port_role.get("result")
+                )
+                if mode is not None:
+                    self.web_result["internet_monitor_enabled"] = mode
+
                 self._last_caching_time = now
 
             # 4. 실시간 수집 데이터 (유선 포트, 무선 상태, LED, WAN 링크 상태는 매 주기마다 필수 조회)
             ports = await self._async_service_json("port/link/status")
             if ports.get("result"):
                 self.web_result["ports"] = ports["result"]
+
+            # Summary: Derive recent bidirectional traffic from read-only packet counters.
+            # Related files: binary_sensor.py.
+            stats = await self._async_service_json("port/stat/get")
+            self.web_result["port_activity"] = _port_activity(
+                stats.get("result"), ports.get("result"), self._port_samples, time.monotonic()
+            )
 
             wg_server = await self._async_service_json("wg/server/show")
             if wg_server.get("result") is not None:
