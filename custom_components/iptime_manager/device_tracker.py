@@ -53,6 +53,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 class IPTimeDeviceEntity(CoordinatorEntity, ScannerEntity):
     """ipTIME 연결 기기 엔티티."""
 
+    # Summary: Show presence trackers as primary entities instead of inherited diagnostics.
+    # Related files: coordinator.py, __init__.py.
+    _attr_entity_category = None
+
     def __init__(self, coordinator, entry, mac: str, name: str) -> None:
         super().__init__(coordinator)
         # 매칭용 MAC: 모든 기호 제거 후 소문자
