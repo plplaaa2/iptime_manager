@@ -11,6 +11,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers import entity_registry as er
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
@@ -83,10 +84,18 @@ SENSOR_TYPES: Dict[str, SensorEntityDescription] = {
         name="EasyMesh Agent Count",
         icon="mdi:access-point-network",
     ),
-    "wireguard_connected_peer_count": SensorEntityDescription(
-        key="wireguard_connected_peer_count",
-        name="WireGuard Connected Peer Count",
+    # Summary: Expose the latest WireGuard peer and handshake time.
+    # Related files: api.py.
+    "wireguard_last_peer_name": SensorEntityDescription(
+        key="wireguard_last_peer_name",
+        name="WireGuard Last Peer Name",
         icon="mdi:account-network",
+    ),
+    "wireguard_last_handshake": SensorEntityDescription(
+        key="wireguard_last_handshake",
+        name="WireGuard Last Handshake",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:clock-outline",
     ),
 }
 
@@ -123,9 +132,12 @@ def _web_sensor_value(web_data: Dict[str, Any], key: str) -> Any:
         if isinstance(agents, dict):
             agents = agents.get("agent", [])
         return len(agents) if isinstance(agents, list) else 0
-    if key == "wireguard_connected_peer_count":
+    # Summary: Return the latest peer metadata calculated at API collection time.
+    # Related files: api.py.
+    if key in ("wireguard_last_peer_name", "wireguard_last_handshake"):
         wg_server = web_data.get("wg_server", {}) if isinstance(web_data, dict) else {}
-        return wg_server.get("connected_peer_count") if isinstance(wg_server, dict) else None
+        field = "last_peer_name" if key == "wireguard_last_peer_name" else "last_handshake_at"
+        return wg_server.get(field) if isinstance(wg_server, dict) else None
     return None
 
 
@@ -133,6 +145,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     """센서 설정."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
+
+    # Summary: Remove only this config entry's retired WireGuard count entity.
+    # Related files: api.py, __init__.py.
+    registry = er.async_get(hass)
+    old_entity_id = registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_wireguard_connected_peer_count"
+    )
+    if old_entity_id is not None:
+        registry.async_remove(old_entity_id)
 
     for key in SENSOR_TYPES:
         entities.append(IPTimeSystemSensor(coordinator, entry, SENSOR_TYPES[key]))

@@ -8,7 +8,7 @@ import html
 import aiohttp
 from typing import Any, Dict, List, Optional, Final
 from json import loads
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from .const import *
 
 # 요약: ipTIME 공유기와의 통신(Web CGI) 담당 API 클래스
@@ -64,6 +64,24 @@ def format_channel_string(channel_str: Any) -> str:
         if y in [50, 114, 163, 15, 47, 79, 111, 143, 175, 207]: return f"{x} (160MHz)"
         return f"{x} (Bonded)"
     return str(x)
+
+# Summary: Select the latest peer handshake from firmware elapsed-second values.
+# Related files: sensor.py.
+def _latest_wireguard_handshake(peers: Any, observed_at: datetime) -> tuple:
+    latest_peer = None
+    latest_age = None
+    for peer in peers if isinstance(peers, list) else []:
+        if not isinstance(peer, dict):
+            continue
+        age = peer.get("last_handshake")
+        if type(age) is not int or not 0 <= age <= observed_at.timestamp():
+            continue
+        if latest_age is None or age < latest_age:
+            latest_peer, latest_age = peer, age
+    if latest_peer is None:
+        return None, None
+    return latest_peer.get("name") or None, observed_at - timedelta(seconds=latest_age)
+
 
 class IPTimeAPI:
     """ipTIME 공유기 API (누락 함수 복구 버전)"""
@@ -362,27 +380,14 @@ class IPTimeAPI:
                     # Firmware 16 exposes peer definitions through a separate endpoint.
                     # Related files: sensor.py, switch.py.
                     peer_response = await self._async_service_json("wg/peer/show")
+                    observed_at = datetime.now(timezone.utc)
                     peers = peer_response.get("result") if isinstance(peer_response.get("result"), list) else wg_data.get("peers", wg_data.get("peer", wg_data.get("clients", [])))
                     if isinstance(peers, dict):
                         peers = list(peers.values())
-                    connected_peers = None
                     peer_count = len(peers) if isinstance(peers, list) else 0
-                    if isinstance(peers, list):
-                        observed_connection = False
-                        connected_peers = 0
-                        for peer in peers:
-                            if not isinstance(peer, dict):
-                                continue
-                            if "connected" in peer or "active" in peer:
-                                observed_connection = True
-                                connected_peers += int(bool(peer.get("connected", peer.get("active"))))
-                            else:
-                                handshake = peer.get("latest_handshake") or peer.get("last_handshake") or peer.get("handshake")
-                                if handshake is not None:
-                                    observed_connection = True
-                                    connected_peers += int(bool(handshake))
-                        if not observed_connection:
-                            connected_peers = None
+                    # Summary: Store the latest peer name and UTC handshake timestamp.
+                    # Related files: sensor.py.
+                    last_peer_name, last_handshake_at = _latest_wireguard_handshake(peers, observed_at)
                     self.web_result["wg_server"] = {
                         "run": bool(wg_data.get("active", False)),
                         "ip": wg_data.get("address", "10.0.21.1"),
@@ -390,7 +395,8 @@ class IPTimeAPI:
                         "port": int(wg_data.get("port", 53344)),
                         "nat": bool(wg_data.get("nat", True)),
                         "peer_count": peer_count,
-                        "connected_peer_count": connected_peers,
+                        "last_peer_name": last_peer_name,
+                        "last_handshake_at": last_handshake_at,
                     }
                 else:
                     self.web_result["wg_server"] = {}
