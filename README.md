@@ -14,7 +14,7 @@ Home Assistant integration for EFM ipTIME routers. Supporting models with the 3r
 
 ### 1. Smart Caching Engine
 * **Reduced Overhead**: Incorporates a memory caching layer to prevent excessive API queries.
-* **Lifecycle Management**: Static parameters (e.g., model name) are queried once and permanently cached. Semi-static configurations (DNS, DoS, UPnP, Reboot schedules, WireGuard states) are cached for 5 minutes to 1 hour.
+* **Lifecycle Management**: The model name is cached after discovery. Network and security configuration is cached for 5 minutes; WireGuard peers and port packet counters are collected on each web update, at least 5 seconds apart.
 * **Instant Mutation Invalidation**: Modifying a switch or selection immediately invalidates the corresponding memory cache, pushing changes to the router and forcing an immediate background update for instant feedback.
 
 ### 2. WAN Status, Public IP, Security Alerts & Firmware Update Detections (1.0.4 Advanced)
@@ -41,6 +41,7 @@ Home Assistant integration for EFM ipTIME routers. Supporting models with the 3r
 
 ### 6. WireGuard VPN Server Control
 * **Server Execution Switch**: Manages the execution state of the built-in WireGuard VPN server.
+* **Latest Peer**: Diagnostic sensors show the name of the peer with the most recent handshake and its UTC timestamp. Firmware `last_handshake` is elapsed seconds, including a valid value of zero. Missing records produce an unknown state. Handshakes can recur during a connection; this is not a connected-peer count or the initial connection time.
 * **API Compliance**: Transmits only the 5 schema fields (`run`, `ip`, `subnet`, `port`, `nat`) required by the firmware validation schema to prevent API runtime errors.
 
 ### 7. Night LED & Auto Reboot Schedule Preservation
@@ -67,17 +68,34 @@ Home Assistant integration for EFM ipTIME routers. Supporting models with the 3r
 
 | Platform | Features & Entities |
 | :--- | :--- |
-| **`device_tracker`** | Real-time presence detection (Home/Away) for selected devices by MAC address |
+| **`device_tracker`** | Presence detection (Home/Away) for selected devices; displayed as primary entities outside Diagnostics |
 | **`sensor`** | Router Uptime, Model Name, Firmware Version (with update status), WAN IP & MAC Address, Primary/Secondary DNS, GeoIP Block Count, etc. |
-| **`binary_sensor`** | WAN & LAN 1-4 Physical Link Status and actual Internet Connectivity (`connectivity` device class supported) |
+| **`binary_sensor`** | WAN/LAN Port physical links, separate WAN/LAN Status packet activity, and router-mode Internet Status |
 | **`switch`** | SSID-level Wi-Fi toggles, WireGuard Server toggle, Auto-Reboot toggle, Port Forwarding toggle, UPnP Relay toggle, **[8 Security Controls]** Remote Admin/CSRF/ARP Virus/Ping Block, etc. |
 | **`select`** | Night LED Mode, Auto-Reboot Day, GeoIP Policy Settings, **[New] Wi-Fi Band Channel Selector (`select.iptime_wifi_channel_...`)** |
-| **`button`** | Router Safe Reboot Trigger (`button.reboot`) |
+| **`button`** | Router reboot action, placed in Diagnostics to reduce accidental presses |
 | **`Event Bus`** | **[New] Port Connection/Disconnection Events (`iptime_manager_port_connected` / `_disconnected`), Security Alerts (`iptime_manager_security_alert`), WAN Port/IP Alerts (`iptime_manager_wan_alert`)** |
 
 ---
 
 ## Safety-First Integration Design
+
+### Port and Internet Status
+
+| Entity | Device class | Active / inactive icon |
+| :--- | :--- | :--- |
+| WAN Port, LAN 1–4 Port | `connectivity` | `mdi:ethernet` / `mdi:ethernet-off` |
+| WAN Status, LAN 1–4 Status | `running` | `mdi:lan-connect` / `mdi:lan-disconnect` |
+| Internet Status | `connectivity` | `mdi:web` / `mdi:web-off` |
+| WireGuard Last Peer Name | None (text) | `mdi:account-network` |
+| WireGuard Last Handshake | `timestamp` | `mdi:clock-outline` |
+
+- Port entities report physical link state and speed. Their existing unique IDs are preserved.
+- Port Status requires both RX and TX packet increases within the last 30 seconds. It reports traffic activity, not successful application communication or Internet access. Idle devices can be off. Attributes include packet deltas and the last observed activity time. Initial samples, counter resets, and missing statistics do not imply inactivity; disconnected links are off when statistics are available.
+- Internet Status retains the old Internet Connectivity unique ID. It is created when NAT and WAN are enabled, and removed when NAT/WAN is disabled or the WAN port has a LAN role. Mode configuration is refreshed approximately every 5 minutes; confirmed mode changes reload the integration. Router-mode Internet outages leave the sensor present and off.
+- The HTTPS probe runs from Home Assistant and assumes its Internet path uses this router. A device used as a hub solely by changing cabling while retaining NAT/WAN settings may not be detected. This check does not run in detected hub/AP mode.
+- The retired WireGuard Connected Peer Count entity is removed automatically on setup. Update dashboards and automations that referenced it to use the new peer name or handshake timestamp as appropriate.
+- These changes are on the development branch; the public version remains 1.0.8. After installing the updated code, restart Home Assistant. User-defined entity names or icons may override integration defaults.
 
 To maintain smart home connectivity, actions that trigger a physical hardware-level reboot—causing complete network outages—have been permanently retired from the integration entities:
 

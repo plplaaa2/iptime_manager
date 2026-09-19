@@ -1,18 +1,26 @@
-ipTIME Manager 폴더 구조 최신화 현황입니다.
-기존 루트에 존재하던 소스 코드들을 HACS 배포 규격에 따라 custom_components 서브디렉토리 하위로 이동 재배치했습니다.
+Project layout (updated 2026-09-19).
+The integration is distributed from custom_components/iptime_manager.
+changelog.jsonl and caution.jsonl are local development records excluded from Git.
+Credential files are intentionally omitted from this listing.
 
-iptime_manager (루트)
+iptime_manager (root)
 |   .gitignore
+|   LICENSE
+|   changelog.jsonl (local)
 |   hacs.json
 |   icon.png
 |   README.md
 |   README.ko.md
 |   tree.md
 |
-+---custom_components
-    |   caution.jsonl
-    |   changelog.jsonl
-    |   tree.md
++---.github
+|   \---workflows
+|           hassfest.yaml
+|           validate.yaml
+|
+\---custom_components
+    |   caution.jsonl (local)
+    |   changelog.jsonl (local)
     |   web_api.md
     |
     \---iptime_manager
@@ -38,3 +46,11 @@ iptime_manager (루트)
         \---translations
                 en.json
                 ko.json
+
+Module responsibilities:
+- api.py: router API access, elapsed WireGuard handshake conversion, port packet activity and router-mode detection.
+- coordinator.py: collection scheduling, conditional Internet probing, mode-change reload and events.
+- binary_sensor.py: physical Port links, packet Status sensors, Internet Status and EasyMesh entities.
+- sensor.py: diagnostic system sensors and latest WireGuard peer/handshake sensors.
+- button.py: diagnostic reboot button.
+- device_tracker.py: primary presence entities outside Diagnostics.

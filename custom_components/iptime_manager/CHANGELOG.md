@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased - dev (2026-09-19)
+
+- Replaced WireGuard Connected Peer Count with diagnostic Last Peer Name and Last Handshake timestamp sensors. Interpret firmware `last_handshake` as elapsed seconds, accept zero, and remove the retired count entity on setup.
+- Renamed physical link entities to WAN Port and LAN 1–4 Port, preserving unique IDs and Ethernet icons.
+- Added separate WAN/LAN Status entities with the `running` device class, based on RX and TX packet activity within 30 seconds. Expose packet deltas and last observed activity; handle initial samples, missing statistics and counter resets.
+- Renamed Internet Connectivity to Internet Status while preserving its unique ID. Omit the entity and stop HTTPS probes in detected hub/AP configurations; reload on confirmed mode changes.
+- Internet checks still originate from Home Assistant. Cabling-only hub arrangements with NAT/WAN left enabled cannot always be identified.
+- Moved the reboot button into Diagnostics and presence trackers out of Diagnostics, preserving their existing actions and tracking behavior.
+- Updated English/Korean documentation and API notes. Public version remains 1.0.8.
+- Validated Python syntax, encoding, helper logic, entity identities, conditional Internet monitoring, and live router packet samples. Home Assistant UI behavior has not yet been verified.
+
 ## [1.0.8] - 2026-09-17
 
 - Added HACS validation and Hassfest GitHub Actions.
