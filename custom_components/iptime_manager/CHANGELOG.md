@@ -7,6 +7,8 @@
 - Renamed Internet Connectivity to Internet Status and excluded detected hub/AP mode.
 - Moved reboot into Diagnostics and presence trackers into the main entity section.
 
+> **beta2:** Existing WAN/LAN Status sensors are renamed to WAN/LAN Port, and Internet Connectivity to Internet Status. Review dashboard and automation references after updating; the new WAN/LAN Status sensors report traffic activity instead of physical link state.
+
 ## [1.0.8] - beta1 2026-09-17
 
 - Added Internet Connectivity monitoring.
