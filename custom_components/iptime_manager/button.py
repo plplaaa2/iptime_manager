@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
@@ -27,6 +28,9 @@ class IPTimeRebootButton(CoordinatorEntity, ButtonEntity):
     def __init__(self, coordinator, entry) -> None:
         super().__init__(coordinator)
         self._entry = entry
+        # Summary: Place the reboot action in Diagnostics to reduce accidental presses.
+        # Related files: __init__.py, api.py.
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self.entity_description = ButtonEntityDescription(
             key="reboot",
             name="Reboot Router",

@@ -1,5 +1,13 @@
 # ipTIME Manager Web API Reference
 
+## Verified monitoring behavior (2026-09-19, dev)
+
+- `port/stat/get` with no parameters returns a list keyed by `type` and `port`. Each item has `rx` and `tx` dictionaries with cumulative `packet`, `byte`, `bcast`, `mcast` and other counters. RX also exposed `error`, `drop`, `crc`, `frag`, `pause`; TX exposed `coll`, `pause`. These are counters, not packet payloads.
+- `port/link/status` provides the physical link. Port Status compares successive packet counters and requires RX and TX activity within 30 seconds. Initial connected samples and counter resets are unknown; missing statistics clear the baseline. No traffic does not prove network failure. Physical Port entities retain their existing `_status` unique ID suffix; new traffic entities use `_activity`.
+- Router-mode detection uses the boolean response from `nat/config`, `enable` from `network/interface/wan1/config`, and optional `port/role`. NAT or WAN disabled, or role `lan`, suppresses Internet Status and its probe. NAT and WAN both enabled allow monitoring. Unknown mode does not create a new Internet entity. The inspected router did not support `port/role`; its UI does reference the method for supported models.
+- Internet Status uses the existing `_internet_connectivity` unique ID and an HTTPS check from the HA host, at the web polling interval (minimum 5 seconds). It is not a router-originated probe. Confirmed mode changes trigger integration reload; an Internet outage alone does not remove the sensor.
+- Reboot is a diagnostic button. Presence trackers explicitly override the inherited diagnostic category with `None` and retain their `device_tracker` domain and IDs.
+
 
 
 이 문서는 현재까지 확인한 `beta UI` 웹 API 정보를 정리한 참고용 파일이다.
@@ -210,6 +218,9 @@
 - `wg/peer/show`, `wg/peer/add`, `wg/peer/change`, `wg/peer/del`
 
   - WireGuard VPN Peer(사용자 기기) 제어 API
+  - 2026-09-19 실물 조회 확인: `wg/peer/show`는 피어 리스트를 반환합니다. 확인된 필드는 `name`, `public_key`, `peer_ip`, `psk`, 선택적 정수 `last_handshake`입니다. 키 값은 로그나 문서에 기록하지 않습니다.
+  - `last_handshake`는 마지막 handshake 이후 경과 초입니다. 재접속 후 작은 값으로 바뀌고 5초 간격 조회에서 41 → 46으로 증가함을 확인했습니다. 기록 없는 피어는 필드가 없으며, `0`도 유효한 기록입니다.
+  - 현재 센서는 최소 경과 초의 피어 이름과 `조회 UTC 시각 - 경과 초`를 제공합니다. 현재 접속 수나 최초 접속 시각으로 해석하지 않습니다.
 
 - `wg/client/show`, `wg/client/add`, `wg/client/change`, `wg/client/del`
 
@@ -279,15 +290,15 @@
 
 - **스마트 캐싱 및 네트워크 오버헤드 최적화 (Smart Caching Engine) (중요)**:
 
-  - 저사양 공유기 하드웨어 부하를 방지하기 위해 매 5초 주기마다 쏟아지던 14번 이상의 JSON-RPC 호출을 70% 이상 감축하였습니다.
+  - 재실 수집과 웹 데이터 수집은 별도로 제한합니다. 웹 데이터는 최소 5초 간격으로 조회하며, 강제 캐시 무효화 시에는 즉시 조회할 수 있습니다.
 
   - **평생 캐시:** 기기 고유 모델명(`port_setup` CGI)은 변경되지 않으므로 최초 1회 로딩 시에만 수집하여 영구 저장합니다.
 
-  - **1시간 캐시 (`3600초`):** `firmware/info`, LAN 설정, DNS 서버 정보 등.
+  - **1시간 캐시 (`3600초`):** Wi-Fi 채널 선택지. 최신 펌웨어 버전 조회는 24시간 캐시를 사용합니다.
 
-  - **5분 캐시 (`300초`):** GeoIP 설정, DoS 설정, Access List 상태, UPnP, Reboot Timer 설정, NAT 링크 유지 설정, IPTV 모드 설정, WireGuard 서버 설정 등.
+  - **5분 캐시 (`300초`):** LAN/WAN 정보, DNS, GeoIP, DoS, ACL, UPnP, 포트포워딩, 재부팅 일정, NAT 및 WAN 사용 설정·포트 역할. WAN 공인 IP도 이 수집 블록에 포함됩니다.
 
-  - **실시간 조회:** WAN 공인 IP 주소, 유선 포트 케이블 연결 물리 링크 상태, 무선 클라이언트 세부 정보.
+  - **웹 갱신마다 조회:** `firmware/info`, `port/link/status`, `port/stat/get`, `wg/server/show`, `wg/peer/show`, 무선 상태 등.
 
   - **즉각 캐시 만료 (Mutation Invalidation):** 홈어시스턴트에서 제어 스위치나 설정을 변경할 때, 즉시 해당 캐시 변수를 비워(`None`) 갱신 시 최신 데이터가 공유기로부터 실시간 반영되도록 동적 캐시 라이프사이클을 보장합니다.
 

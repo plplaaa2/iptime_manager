@@ -1,40 +1,37 @@
 # Changelog
 
-## [1.0.8] - 2026-09-17
+## [1.0.8] - beta2 (2026-09-19)
 
-- Added HACS validation and Hassfest GitHub Actions.
-- Updated HACS metadata to comply with the current schema.
-- Added the `hub` integration type and sorted manifest keys.
-- Updated the default README to concise English documentation.
-- Added a concise Korean README as `README.ko.md`.
-- Updated integration brand images to 256×256 PNG files.
-- Fixed translation files to match the Home Assistant translation schema.
+- Replaced WireGuard peer count with the latest peer name and handshake time.
+- Separated WAN/LAN physical Port sensors from traffic Status sensors.
+- Renamed Internet Connectivity to Internet Status and excluded detected hub/AP mode.
+- Moved reboot into Diagnostics and presence trackers into the main entity section.
 
-- Added an Internet Connectivity binary sensor using an external HTTPS probe every 5 seconds.
-- fixed live Wi-Fi channel state and WireGuard peer discovery.
+> **beta2:** Existing WAN/LAN Status sensors are renamed to WAN/LAN Port, and Internet Connectivity to Internet Status. Review dashboard and automation references after updating; the new WAN/LAN Status sensors report traffic activity instead of physical link state.
+
+## [1.0.8] - beta1 2026-09-17
+
+- Added Internet Connectivity monitoring.
+- Fixed Wi-Fi channel reporting and WireGuard peer discovery.
+- Improved HACS compatibility and translations.
 
 ## [1.0.7] - 2026-08-05
 
-- Added read-only EasyMesh SSID attributes without exposing passwords or keys.
-- Added a diagnostic sensor for the number of connected WireGuard peers.
-- Added device mode selection to Config Flow: auto, single router, EasyMesh Controller, or EasyMesh Agent.
+- Added EasyMesh SSID information and device mode selection.
+- Added a WireGuard connected peer count sensor.
 
 ## [1.0.6] - 2026-08-05
 
-- Added EasyMesh activation and Agent count diagnostic entities.
-- Added per-Agent connection status entities and Controller metadata attributes.
-- Classified router identity and status sensors as diagnostic entities.
-- Classified Wi-Fi channel, auto-reboot day, night LED, and GeoIP policy selectors as configuration entities.
+- Added EasyMesh status and Agent monitoring.
+- Organized diagnostic and configuration entities.
 
 ## [1.0.5] - 2026-07-13
 
-- Updated the `ScannerEntity` import path to remove a Home Assistant deprecation warning.
-- Improved compatibility with future Home Assistant releases.
+- Fixed a Home Assistant device tracker compatibility warning.
 
 ## [1.0.4] - 2026-05-27
 
-- Added firmware update detection and persistent notifications.
-- Added a direct link to the router settings page in update notifications.
+- Added firmware update detection and notifications.
 
 ## [1.0.3] - 2026-05-18
 
@@ -45,16 +42,13 @@
 ## [1.0.2] - 2026-05-18
 
 - Added randomized/private MAC address warnings.
-- Added configurable scan intervals and presence tracking options.
-- Improved polling performance with separate presence and router data intervals.
+- Added configurable presence tracking intervals and improved polling efficiency.
 
 ## [1.0.1] - 2026-05-18
 
-- Fixed Options Flow device selection persistence.
-- Removed excluded device trackers from the entity registry.
+- Fixed device selection persistence and removal of untracked devices.
 - Improved English and Korean localization.
 
 ## [1.0.0] - 2026-05-17
 
-- Initial stable release using the ipTIME local JSON-RPC web API.
-- Added router monitoring, Wi-Fi controls, security controls, and presence tracking.
+- Initial release with router monitoring, Wi-Fi and security controls, and presence tracking.

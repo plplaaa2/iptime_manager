@@ -43,7 +43,6 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 self.entry.data.get(CONF_RSSI_LIMIT, DEFAULT_RSSI_LIMIT)
             )
             success = await self.api.async_update(rssi_limit=rssi_limit)
-            internet_connected = await self.api.async_check_internet()
             
             # 2. Web 데이터 수집 (기본/필수) - 재실 주기 단축 시 공유기 부하 예방을 위한 5초 격리/독립
             # 다만 스위치 제어 등의 강제 갱신(caching_time 리셋) 시에는 즉시 동기화합니다.
@@ -52,6 +51,16 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             if now - self._last_web_update >= 5.0 or getattr(self.api, "_last_caching_time", 300.0) == 0.0:
                 await self.api.async_get_web_data()
                 self._last_web_update = now
+
+                # Summary: Probe external reachability only for confirmed router mode.
+                # Related files: api.py, binary_sensor.py.
+                monitor_enabled = self.api.web_result.get("internet_monitor_enabled")
+                self.api.web_result["internet_connected"] = (
+                    await self.api.async_check_internet() if monitor_enabled is True else None
+                )
+                old_mode = (self.data or {}).get("web", {}).get("internet_monitor_enabled")
+                if self.data and monitor_enabled is not None and old_mode != monitor_enabled:
+                    self.hass.async_create_task(self.hass.config_entries.async_reload(self.entry.entry_id))
 
             if not success:
                 _LOGGER.warning("Failed to collect web data from the router (Auth or communication error)")
@@ -62,7 +71,6 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 "devices": copy.deepcopy(self.api.result),
                 "web": copy.deepcopy(self.api.web_result),
             }
-            combined_data["web"]["internet_connected"] = internet_connected
 
             # 4. 외부 인터넷(WAN) 연결 상태 변화 감지 및 HA 알림 생성
             if self.data:
