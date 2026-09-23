@@ -197,11 +197,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if web_data.get("upnp_relay") is not None:
             entities.append(IPTimeUPnPRelaySwitch(coordinator, entry))
 
-        # EasyMesh configuration controls are available only in active controller mode.
-        if backhaul_supported:
-            entities.append(IPTimeEasyMeshWiredBackhaulLockSwitch(coordinator, entry))
-        if density_supported:
-            entities.append(IPTimeEasyMeshDensityControlSwitch(coordinator, entry))
+    # EasyMesh controls are gated by the live controller role and exposed config keys.
+    # Their availability does not depend on the generic beta-UI switch collection.
+    if backhaul_supported:
+        entities.append(IPTimeEasyMeshWiredBackhaulLockSwitch(coordinator, entry))
+    if density_supported:
+        entities.append(IPTimeEasyMeshDensityControlSwitch(coordinator, entry))
 
     async_add_entities(entities)
 

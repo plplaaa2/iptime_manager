@@ -27,7 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     coordinator = hass.data[DOMAIN][entry.entry_id]
     web_data = (coordinator.data or {}).get("web", {})
     global_config = _mesh_global_config(web_data)
-    controller = coordinator.api._beta_ui and is_easymesh_controller(web_data)
+    controller = is_easymesh_controller(web_data)
     entities: list[NumberEntity] = []
     registry = er.async_get(hass)
 

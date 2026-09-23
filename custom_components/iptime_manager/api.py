@@ -601,7 +601,7 @@ class IPTimeAPI:
     # Related files: switch.py, number.py.
     async def _async_set_easymesh_global(self, values: Dict[str, Any]) -> bool:
         """Update supported EasyMesh controller settings without touching other fields."""
-        if not self._beta_ui or not is_easymesh_controller(self.web_result):
+        if not is_easymesh_controller(self.web_result):
             return False
         mesh = self.web_result.get("easymesh", {})
         config = mesh.get("config", {}) if isinstance(mesh, dict) else {}
