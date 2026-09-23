@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
 from .const import DOMAIN, CONF_URL
-from .api import is_easymesh_controller
+from .api import get_easymesh_agents, is_easymesh_agent_connected, is_easymesh_controller
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             registry.async_remove(entity_id)
 
     web_data = data.get("web", {})
-    mesh_agents = _get_mesh_agents(web_data.get("easymesh", {})) if is_easymesh_controller(web_data) else []
+    mesh_agents = get_easymesh_agents(web_data.get("easymesh", {})) if is_easymesh_controller(web_data) else []
     current_agent_ids = {
         f"{entry.entry_id}_easymesh_agent_{_entity_key_part(str(agent.get('mac') or agent.get('al_mac') or agent.get('product_name') or 'agent'))}"
         for agent in mesh_agents
@@ -139,18 +139,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 entities.append(IPTimePortActivityBinarySensor(coordinator, entry, f"{port_type}:{port_num}", port_info=port_info))
 
     async_add_entities(entities)
-
-
-def _get_mesh_agents(mesh_data: Dict[str, Any]) -> list[Dict[str, Any]]:
-    """Normalize EasyMesh agent responses from different firmware versions."""
-    if not isinstance(mesh_data, dict):
-        return []
-    raw_agents = mesh_data.get("agents", mesh_data.get("agent", []))
-    if isinstance(raw_agents, dict):
-        raw_agents = raw_agents.get("agent", raw_agents.get("list", []))
-    if not isinstance(raw_agents, list):
-        return []
-    return [agent for agent in raw_agents if isinstance(agent, dict)]
 
 
 class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEntity):
@@ -265,7 +253,7 @@ class IPTimeEasyMeshAgentBinarySensor(CoordinatorEntity, BinarySensorEntity):
     def _current_agent(self) -> Dict[str, Any]:
         data = self.coordinator.data or {}
         mesh_data = data.get("web", {}).get("easymesh", {})
-        for agent in _get_mesh_agents(mesh_data):
+        for agent in get_easymesh_agents(mesh_data):
             mac = str(agent.get("mac") or agent.get("al_mac") or "").strip().lower()
             if mac == self._mac:
                 return agent
@@ -276,7 +264,7 @@ class IPTimeEasyMeshAgentBinarySensor(CoordinatorEntity, BinarySensorEntity):
         agent = self._current_agent()
         if not agent:
             return False
-        return bool(agent.get("connected", agent.get("active", agent.get("online", True))))
+        return is_easymesh_agent_connected(agent)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -286,6 +274,7 @@ class IPTimeEasyMeshAgentBinarySensor(CoordinatorEntity, BinarySensorEntity):
             "nickname": agent.get("nickname"),
             "product_name": agent.get("product_name"),
             "backhaul": agent.get("backhaul") or agent.get("connection"),
+            "status": agent.get("status"),
             "controller_mac": agent.get("controller_mac"),
         }
 

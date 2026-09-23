@@ -52,6 +52,48 @@ def is_easymesh_controller(web_data: Dict[str, Any]) -> bool:
     return active is not False
 
 
+# Summary: Share EasyMesh agent normalization and liveness rules across entity platforms.
+# Related files: binary_sensor.py, sensor.py.
+def get_easymesh_agents(mesh_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Normalize EasyMesh agent responses from different firmware versions."""
+    if not isinstance(mesh_data, dict):
+        return []
+    raw_agents = mesh_data.get("agents", mesh_data.get("agent", []))
+    if isinstance(raw_agents, dict):
+        raw_agents = raw_agents.get("agent", raw_agents.get("list", []))
+    if not isinstance(raw_agents, list):
+        return []
+    return [agent for agent in raw_agents if isinstance(agent, dict)]
+
+
+def is_easymesh_agent_connected(agent: Dict[str, Any]) -> bool:
+    """Determine agent liveness from explicit status and backhaul fields."""
+    offline_values = {"0", "FALSE", "NO", "OFF", "DOWN", "MISSING", "NOT_CONNECTED", "DISCONNECTED", "OFFLINE"}
+    online_values = {"1", "TRUE", "YES", "ON", "UP", "CONNECTED", "ONLINE", "ONBOARDING"}
+    status = str(agent.get("status") or "").strip().upper().replace("-", "_").replace(" ", "_")
+    connection = str(agent.get("connection") or "").strip().upper().replace("-", "_").replace(" ", "_")
+
+    if status in offline_values or connection in offline_values:
+        return False
+
+    for key in ("connected", "active", "online"):
+        value = agent.get(key)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)) and value in (0, 1):
+            return bool(value)
+        if isinstance(value, str):
+            normalized = value.strip().upper()
+            if normalized in offline_values:
+                return False
+            if normalized in online_values:
+                return True
+
+    if connection in {"WIRED", "WIRELESS", "ETHERNET", "WIFI", "WIRELESS_BACKHAUL"}:
+        return True
+    return status in online_values
+
+
 def _normalize_model_name(raw_model: Any) -> str:
     text = str(raw_model or "").strip()
     if not text:
@@ -597,11 +639,14 @@ class IPTimeAPI:
             _LOGGER.debug(f"웹 데이터 수집 실패: {err}")
             return False
 
-    # Summary: Apply only supported controller-global EasyMesh settings.
+    # Summary: Apply EasyMesh global settings while limiting advanced fields to controller mode.
     # Related files: switch.py, number.py.
     async def _async_set_easymesh_global(self, values: Dict[str, Any]) -> bool:
         """Update supported EasyMesh controller settings without touching other fields."""
-        if not is_easymesh_controller(self.web_result):
+        role = get_easymesh_role(self.web_result)
+        if not is_easymesh_controller(self.web_result) and not (
+            set(values) == {"enable"} and role == "alone"
+        ):
             return False
         mesh = self.web_result.get("easymesh", {})
         config = mesh.get("config", {}) if isinstance(mesh, dict) else {}
@@ -615,6 +660,10 @@ class IPTimeAPI:
             return False
         self._last_caching_time = 0.0
         return True
+
+    async def async_set_easymesh_enabled(self, enabled: bool) -> bool:
+        """Toggle EasyMesh mode through the controller setup page's global enable flag."""
+        return await self._async_set_easymesh_global({"enable": bool(enabled)})
 
     async def async_set_easymesh_wired_backhaul_lock(self, enabled: bool) -> bool:
         return await self._async_set_easymesh_global({"bh_wired_lock": bool(enabled)})

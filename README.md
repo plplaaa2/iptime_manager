@@ -15,6 +15,7 @@ Home Assistant integration for monitoring and controlling EFM ipTIME routers ove
 - WAN/LAN link speed, packet activity and Internet Status
 - WireGuard server control and latest peer handshake information
 - EasyMesh controller settings for wired backhaul lock, dense deployment, RSSI threshold and steering level
+- EasyMesh router mode and connected Agent count
 - Presence detection for selected devices
 - Security settings, GeoIP, port forwarding and UPnP
 - Night LED, scheduled reboot and a reboot button in Diagnostics

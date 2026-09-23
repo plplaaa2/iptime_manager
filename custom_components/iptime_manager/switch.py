@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import logging
 from typing import Any, Dict, List
 
 from homeassistant.components.switch import SwitchEntity
@@ -9,9 +10,26 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers import entity_registry as er
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.util import slugify
 
 from .const import DOMAIN, CONF_URL
 from .api import format_channel_string, is_easymesh_agent, is_easymesh_controller
+
+_LOGGER = logging.getLogger(__name__)
+
+
+# Summary: Restore controller-only EasyMesh switch entity IDs after the naming experiment.
+# Related files: number.py, api.py.
+def _restore_easymesh_switch_entity_id(registry, unique_id: str, model: str, name: str) -> None:
+    entity_id = registry.async_get_entity_id("switch", DOMAIN, unique_id)
+    new_entity_id = f"switch.{slugify(model + ' ' + name)}"
+    if entity_id is None or entity_id == new_entity_id:
+        return
+    try:
+        registry.async_update_entity(entity_id, new_entity_id=new_entity_id)
+    except HomeAssistantError as err:
+        _LOGGER.warning("Could not restore EasyMesh switch entity ID %s: %s", entity_id, err)
 
 
 def _entity_key_part(value: Any) -> str:
@@ -130,6 +148,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     mesh_global = mesh_config.get("global", {}) if isinstance(mesh_config, dict) else {}
     backhaul_supported = role == "controller" and isinstance(mesh_global, dict) and "bh_wired_lock" in mesh_global
     density_supported = role == "controller" and isinstance(mesh_global, dict) and isinstance(mesh_global.get("density_control"), dict)
+    mode_switch_supported = role in {"controller", "alone"} and isinstance(mesh_global, dict) and "enable" in mesh_global
+    model = str(web_data.get("model", "ipTIME Router"))
     wg_supported = role != "agent" and web_data.get("wg_server") is not None
     stale_ids = []
     if not wg_supported:
@@ -138,6 +158,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         stale_ids.append(f"{entry.entry_id}_easymesh_wired_backhaul_lock")
     if not density_supported:
         stale_ids.append(f"{entry.entry_id}_easymesh_density_control")
+    if not mode_switch_supported:
+        stale_ids.append(f"{entry.entry_id}_easymesh_mode")
     for unique_id in stale_ids:
         entity_id = registry.async_get_entity_id("switch", DOMAIN, unique_id)
         if entity_id:
@@ -199,12 +221,66 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     # EasyMesh controls are gated by the live controller role and exposed config keys.
     # Their availability does not depend on the generic beta-UI switch collection.
+    if mode_switch_supported:
+        entities.append(IPTimeEasyMeshModeSwitch(coordinator, entry))
     if backhaul_supported:
+        _restore_easymesh_switch_entity_id(
+            registry,
+            f"{entry.entry_id}_easymesh_wired_backhaul_lock",
+            model,
+            f"EasyMesh Wired Backhaul Lock {entry.data.get(CONF_URL)}",
+        )
         entities.append(IPTimeEasyMeshWiredBackhaulLockSwitch(coordinator, entry))
     if density_supported:
+        _restore_easymesh_switch_entity_id(
+            registry,
+            f"{entry.entry_id}_easymesh_density_control",
+            model,
+            f"EasyMesh Dense Configuration {entry.data.get(CONF_URL)}",
+        )
         entities.append(IPTimeEasyMeshDensityControlSwitch(coordinator, entry))
 
     async_add_entities(entities)
+
+
+class IPTimeEasyMeshModeSwitch(CoordinatorEntity, SwitchEntity):
+    """Enable or disable EasyMesh mode from the router's basic settings."""
+
+    def __init__(self, coordinator, entry) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_easymesh_mode"
+        self._attr_name = f"EasyMesh Controller Mode ({entry.data.get(CONF_URL)})"
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_entity_registry_enabled_default = False
+        self._attr_icon = "mdi:access-point-network"
+
+    @property
+    def is_on(self) -> bool:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        mesh_data = web_data.get("easymesh", {})
+        config = mesh_data.get("config", {}) if isinstance(mesh_data, dict) else {}
+        global_config = config.get("global", {}) if isinstance(config, dict) else {}
+        return bool(global_config.get("enable")) if isinstance(global_config, dict) else False
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.coordinator.api.async_set_easymesh_enabled(True)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.coordinator.api.async_set_easymesh_enabled(False)
+        await self.coordinator.async_request_refresh()
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        model = web_data.get("model", "ipTIME Router")
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": model,
+            "manufacturer": "EFM Networks",
+            "model": model,
+        }
 
 
 class IPTimeEasyMeshWiredBackhaulLockSwitch(CoordinatorEntity, SwitchEntity):
@@ -214,7 +290,7 @@ class IPTimeEasyMeshWiredBackhaulLockSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_easymesh_wired_backhaul_lock"
-        self._attr_translation_key = "easymesh_wired_backhaul_lock"
+        self._attr_name = f"EasyMesh Wired Backhaul Lock ({entry.data.get(CONF_URL)})"
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_icon = "mdi:ethernet"
 
@@ -234,6 +310,17 @@ class IPTimeEasyMeshWiredBackhaulLockSwitch(CoordinatorEntity, SwitchEntity):
         await self.coordinator.api.async_set_easymesh_wired_backhaul_lock(False)
         await self.coordinator.async_request_refresh()
 
+    @property
+    def device_info(self) -> dict[str, Any]:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        model = web_data.get("model", "ipTIME Router")
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": model,
+            "manufacturer": "EFM Networks",
+            "model": model,
+        }
+
 
 class IPTimeEasyMeshDensityControlSwitch(CoordinatorEntity, SwitchEntity):
     """Enable or disable EasyMesh dense deployment control."""
@@ -242,7 +329,7 @@ class IPTimeEasyMeshDensityControlSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_easymesh_density_control"
-        self._attr_translation_key = "easymesh_density_control"
+        self._attr_name = f"EasyMesh Dense Configuration ({entry.data.get(CONF_URL)})"
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_icon = "mdi:access-point-network"
 
@@ -262,6 +349,17 @@ class IPTimeEasyMeshDensityControlSwitch(CoordinatorEntity, SwitchEntity):
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_easymesh_density_control(False)
         await self.coordinator.async_request_refresh()
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        model = web_data.get("model", "ipTIME Router")
+        return {
+            "identifiers": {(DOMAIN, self._entry.entry_id)},
+            "name": model,
+            "manufacturer": "EFM Networks",
+            "model": model,
+        }
 
 
 class IPTimeWifiSwitch(CoordinatorEntity, SwitchEntity):

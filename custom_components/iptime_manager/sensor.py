@@ -16,7 +16,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
 from .const import DOMAIN, CONF_URL
-from .api import is_easymesh_agent, is_easymesh_controller
+from .api import (
+    get_easymesh_agents,
+    get_easymesh_role,
+    is_easymesh_agent,
+    is_easymesh_agent_connected,
+    is_easymesh_controller,
+)
 
 # 요약: Web 데이터를 통합하여 시스템 정보 및 네트워크 통계를 제공하는 센서 플랫폼
 # 연결될 파일: coordinator.py, const.py, api.py
@@ -36,6 +42,13 @@ SENSOR_TYPES: Dict[str, SensorEntityDescription] = {
         key="model",
         name="Model",
         icon="mdi:router-wireless",
+    ),
+    # Summary: Expose the current EasyMesh/router role as a diagnostic sensor.
+    # Related files: api.py, coordinator.py, binary_sensor.py.
+    "router_mode": SensorEntityDescription(
+        key="router_mode",
+        name="Router Mode",
+        icon="mdi:router-network",
     ),
     "version": SensorEntityDescription(
         key="version",
@@ -111,6 +124,14 @@ def _web_sensor_value(web_data: Dict[str, Any], key: str) -> Any:
         return web_data.get("uptime") if isinstance(web_data, dict) else None
     if key == "model":
         return web_data.get("model", "ipTIME Router") if isinstance(web_data, dict) else "ipTIME Router"
+    if key == "router_mode":
+        role = get_easymesh_role(web_data)
+        labels = {
+            "controller": "Controller",
+            "agent": "Agent",
+            "alone": "Alone",
+        }
+        return labels.get(role, role.replace("_", " ").title() if role else "Unknown")
     if key == "version":
         return firmware.get("version")
     if key == "latest_version":
@@ -129,10 +150,8 @@ def _web_sensor_value(web_data: Dict[str, Any], key: str) -> Any:
         return web_data.get("geoip_blocked_pcount") if isinstance(web_data, dict) else None
     if key == "easymesh_agent_count":
         mesh = web_data.get("easymesh", {}) if isinstance(web_data, dict) else {}
-        agents = mesh.get("agents", {}) if isinstance(mesh, dict) else {}
-        if isinstance(agents, dict):
-            agents = agents.get("agent", [])
-        return len(agents) if isinstance(agents, list) else 0
+        agents = get_easymesh_agents(mesh)
+        return sum(1 for agent in agents if is_easymesh_agent_connected(agent))
     # Summary: Return the latest peer metadata calculated at API collection time.
     # Related files: api.py.
     if key in ("wireguard_last_peer_name", "wireguard_last_handshake"):
