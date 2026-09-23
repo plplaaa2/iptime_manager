@@ -12,7 +12,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN, CONF_URL
-from .api import format_channel_string, is_easymesh_agent
+from .api import channel_option_value, is_easymesh_agent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -384,9 +384,7 @@ class IPTimeWifiChannelSelect(CoordinatorEntity, SelectEntity):
             for b in bands:
                 if str(b.get("band")).lower() == str(self._band).lower():
                     ch = b.get("channel")
-                    if ch in (None, "", "0", "0.0"):
-                        return "auto"
-                    return format_channel_string(ch)
+                    return channel_option_value(ch)
         return "auto"
 
     @property

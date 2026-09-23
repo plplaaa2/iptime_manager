@@ -100,6 +100,20 @@ def format_channel_string(channel_str: Any) -> str:
         return f"{x} (Bonded)"
     return str(x)
 
+
+# Summary: Normalize bonded channel strings to the primary channel used by the channel selector.
+# Related files: select.py.
+def channel_option_value(channel: Any) -> str:
+    if channel is None:
+        return "auto"
+    value = str(channel).strip()
+    if value.lower() in ("", "0", "0.0", "auto"):
+        return "auto"
+    match = re.fullmatch(r"(\d+)(?:\.\d+)?", value)
+    if match:
+        return match.group(1)
+    return format_channel_string(channel)
+
 # Summary: Select the latest peer handshake from firmware elapsed-second values.
 # Related files: sensor.py.
 def _latest_wireguard_handshake(peers: Any, observed_at: datetime) -> tuple:
@@ -1236,7 +1250,7 @@ class IPTimeAPI:
                         clean_channels.append("auto")
                 else:
                     # 채널 본딩 정보 매핑 (예: 149.155 -> 149 (80MHz))
-                    norm_c = format_channel_string(c)
+                    norm_c = channel_option_value(c)
                     if norm_c not in clean_channels:
                         clean_channels.append(norm_c)
             
