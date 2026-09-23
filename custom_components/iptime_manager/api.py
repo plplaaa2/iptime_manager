@@ -634,7 +634,7 @@ class IPTimeAPI:
         })
 
     async def async_set_easymesh_density_rssi(self, rssi: int) -> bool:
-        if not -100 <= int(rssi) <= -70:
+        if not -100 <= int(rssi) <= -40:
             return False
         mesh = self.web_result.get("easymesh", {})
         config = mesh.get("config", {}) if isinstance(mesh, dict) else {}

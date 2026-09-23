@@ -76,7 +76,7 @@ class IPTimeEasyMeshDensityRSSINumber(_IPTimeEasyMeshNumber):
     def __init__(self, coordinator, entry) -> None:
         super().__init__(coordinator, entry, "easymesh_density_rssi", "easymesh_density_rssi")
         self._attr_native_min_value = -100
-        self._attr_native_max_value = -70
+        self._attr_native_max_value = -40
         self._attr_native_unit_of_measurement = "dBm"
 
     @property

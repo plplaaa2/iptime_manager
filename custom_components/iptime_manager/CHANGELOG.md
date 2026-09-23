@@ -6,6 +6,7 @@
 - Restricted controller controls to active controllers and hid GeoIP, WireGuard and DNS entities in Agent mode.
 - Read router uptime from `system/info.uptime` instead of WAN/LAN connection duration.
 - Fixed EasyMesh controller 5 GHz channel selector values by matching bonded channels on their primary channel number.
+- Corrected the EasyMesh density RSSI range to match the router UI (`-100` to `-40 dBm`).
 
 ## [1.0.8] - beta2 (2026-09-19)
 
