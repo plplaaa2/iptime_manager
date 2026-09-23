@@ -51,10 +51,6 @@
     "switch": {
       "easymesh_wired_backhaul_lock": {"name": "EasyMesh 유선 백홀 고정"},
       "easymesh_density_control": {"name": "EasyMesh 메시 밀집 구성"}
-    },
-    "number": {
-      "easymesh_density_rssi": {"name": "EasyMesh 스테이션 차단 신호 세기"},
-      "easymesh_steering_level": {"name": "EasyMesh 스티어링 레벨"}
     }
   }
 }
