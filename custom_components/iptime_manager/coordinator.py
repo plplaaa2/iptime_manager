@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.translation import async_get_translations
 from .const import *
-from .api import IPTimeAPI
+from .api import IPTimeAPI, get_easymesh_role
 
 # 요약: Web 및 SNMP 데이터를 통합하여 엔티티에 제공하는 중앙 코디네이터
 # 연결된 파일: api.py, const.py, __init__.py, sensor.py, device_tracker.py
@@ -21,6 +21,7 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         self.entry = entry
         self._last_web_update = 0.0
         self._firmware_update_notified = False
+        self._role_reload_pending = False
         
         scan_interval = entry.options.get(
             CONF_SCAN_INTERVAL,
@@ -71,6 +72,21 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 "devices": copy.deepcopy(self.api.result),
                 "web": copy.deepcopy(self.api.web_result),
             }
+
+            # Summary: Reload entities when EasyMesh mode changes between Controller, Agent and Alone.
+            # Related files: api.py, sensor.py, binary_sensor.py, select.py, switch.py, number.py.
+            old_role = get_easymesh_role((self.data or {}).get("web", {}))
+            new_role = get_easymesh_role(combined_data["web"])
+            if self.data and old_role and new_role and old_role != new_role and not self._role_reload_pending:
+                self._role_reload_pending = True
+
+                async def reload_for_role_change() -> None:
+                    try:
+                        await self.hass.config_entries.async_reload(self.entry.entry_id)
+                    finally:
+                        self._role_reload_pending = False
+
+                self.hass.async_create_task(reload_for_role_change())
 
             # 4. 외부 인터넷(WAN) 연결 상태 변화 감지 및 HA 알림 생성
             if self.data:

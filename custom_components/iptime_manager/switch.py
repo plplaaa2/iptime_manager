@@ -6,10 +6,12 @@ from typing import Any, Dict, List
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN, CONF_URL
-from .api import format_channel_string
+from .api import format_channel_string, is_easymesh_agent, is_easymesh_controller
 
 
 def _entity_key_part(value: Any) -> str:
@@ -119,6 +121,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     coordinator = hass.data[DOMAIN][entry.entry_id]
     web_data = (coordinator.data or {}).get("web", {})
     entities = []
+    registry = er.async_get(hass)
+
+    # Remove role-specific controls when the router no longer supports their mode.
+    role = "agent" if is_easymesh_agent(web_data) else "controller" if is_easymesh_controller(web_data) else "other"
+    mesh_data = web_data.get("easymesh", {})
+    mesh_config = mesh_data.get("config", {}) if isinstance(mesh_data, dict) else {}
+    mesh_global = mesh_config.get("global", {}) if isinstance(mesh_config, dict) else {}
+    backhaul_supported = role == "controller" and isinstance(mesh_global, dict) and "bh_wired_lock" in mesh_global
+    density_supported = role == "controller" and isinstance(mesh_global, dict) and isinstance(mesh_global.get("density_control"), dict)
+    wg_supported = role != "agent" and web_data.get("wg_server") is not None
+    stale_ids = []
+    if not wg_supported:
+        stale_ids.append(f"{entry.entry_id}_wg_server_run")
+    if not backhaul_supported:
+        stale_ids.append(f"{entry.entry_id}_easymesh_wired_backhaul_lock")
+    if not density_supported:
+        stale_ids.append(f"{entry.entry_id}_easymesh_density_control")
+    for unique_id in stale_ids:
+        entity_id = registry.async_get_entity_id("switch", DOMAIN, unique_id)
+        if entity_id:
+            registry.async_remove(entity_id)
 
     # 밴드 단위가 아닌 개별 BSS(SSID) 단위로 스위치 생성
     for bss in _web_wireless_bss_list(web_data):
@@ -162,8 +185,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if web_data.get("wan_heartbeat") is not None:
             entities.append(IPTimeWanReconnectSwitch(coordinator, entry))
 
-        # 와이어가드 서버 설정이 수집되는 하드웨어 모델인 경우에만 스위치 생성 (예외 처리)
-        if web_data.get("wg_server") is not None:
+        # WireGuard is hidden on EasyMesh agents.
+        if wg_supported:
             entities.append(IPTimeWireGuardServerSwitch(coordinator, entry))
 
         # 포트포워드 설정이 지원되는 모델인 경우에만 생성
@@ -174,7 +197,70 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if web_data.get("upnp_relay") is not None:
             entities.append(IPTimeUPnPRelaySwitch(coordinator, entry))
 
+        # EasyMesh configuration controls are available only in active controller mode.
+        if backhaul_supported:
+            entities.append(IPTimeEasyMeshWiredBackhaulLockSwitch(coordinator, entry))
+        if density_supported:
+            entities.append(IPTimeEasyMeshDensityControlSwitch(coordinator, entry))
+
     async_add_entities(entities)
+
+
+class IPTimeEasyMeshWiredBackhaulLockSwitch(CoordinatorEntity, SwitchEntity):
+    """Lock EasyMesh agents to wired backhaul when supported by the controller."""
+
+    def __init__(self, coordinator, entry) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_easymesh_wired_backhaul_lock"
+        self._attr_translation_key = "easymesh_wired_backhaul_lock"
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_icon = "mdi:ethernet"
+
+    @property
+    def is_on(self) -> bool:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        mesh_data = web_data.get("easymesh", {})
+        config = mesh_data.get("config", {}) if isinstance(mesh_data, dict) else {}
+        global_config = config.get("global", {}) if isinstance(config, dict) else {}
+        return bool(global_config.get("bh_wired_lock")) if isinstance(global_config, dict) else False
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.coordinator.api.async_set_easymesh_wired_backhaul_lock(True)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.coordinator.api.async_set_easymesh_wired_backhaul_lock(False)
+        await self.coordinator.async_request_refresh()
+
+
+class IPTimeEasyMeshDensityControlSwitch(CoordinatorEntity, SwitchEntity):
+    """Enable or disable EasyMesh dense deployment control."""
+
+    def __init__(self, coordinator, entry) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_easymesh_density_control"
+        self._attr_translation_key = "easymesh_density_control"
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_icon = "mdi:access-point-network"
+
+    @property
+    def is_on(self) -> bool:
+        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
+        mesh_data = web_data.get("easymesh", {})
+        config = mesh_data.get("config", {}) if isinstance(mesh_data, dict) else {}
+        global_config = config.get("global", {}) if isinstance(config, dict) else {}
+        density = global_config.get("density_control", {}) if isinstance(global_config, dict) else {}
+        return bool(density.get("enable")) if isinstance(density, dict) else False
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.coordinator.api.async_set_easymesh_density_control(True)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.coordinator.api.async_set_easymesh_density_control(False)
+        await self.coordinator.async_request_refresh()
 
 
 class IPTimeWifiSwitch(CoordinatorEntity, SwitchEntity):

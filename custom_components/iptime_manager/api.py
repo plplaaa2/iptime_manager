@@ -17,6 +17,41 @@ from .const import *
 _LOGGER = logging.getLogger(__name__)
 
 
+# Summary: Normalize the router's EasyMesh mode for role-specific entity and API gates.
+# Related files: coordinator.py, binary_sensor.py, sensor.py, select.py, switch.py, number.py.
+def get_easymesh_role(web_data: Dict[str, Any]) -> str | None:
+    """Return the EasyMesh role reported by the router."""
+    mesh = web_data.get("easymesh", {}) if isinstance(web_data, dict) else {}
+    info = mesh.get("info", {}) if isinstance(mesh, dict) else {}
+    system_info = web_data.get("system_info", {}) if isinstance(web_data, dict) else {}
+    system_mesh = system_info.get("easymesh", {}) if isinstance(system_info, dict) else {}
+    info_active = info.get("active") if isinstance(info, dict) else None
+    active = info_active if info_active is not None else (
+        web_data.get("easymesh_active") if isinstance(web_data, dict) else None
+    )
+    if active is not None and not bool(active):
+        return "alone"
+    role = None
+    if isinstance(info, dict):
+        role = info.get("role") or info.get("current_role")
+    if not role and isinstance(system_mesh, dict):
+        role = system_mesh.get("role")
+    return str(role).strip().lower() if role else None
+
+
+def is_easymesh_agent(web_data: Dict[str, Any]) -> bool:
+    return get_easymesh_role(web_data) == "agent"
+
+
+def is_easymesh_controller(web_data: Dict[str, Any]) -> bool:
+    if get_easymesh_role(web_data) != "controller":
+        return False
+    mesh = web_data.get("easymesh", {}) if isinstance(web_data, dict) else {}
+    info = mesh.get("info", {}) if isinstance(mesh, dict) else {}
+    active = info.get("active") if isinstance(info, dict) else None
+    return active is not False
+
+
 def _normalize_model_name(raw_model: Any) -> str:
     text = str(raw_model or "").strip()
     if not text:
@@ -481,9 +516,20 @@ class IPTimeAPI:
             wireless_bss = await self._async_service_json("wireless/bss/show")
             wireless_client = await self._async_service_json("wireless/client/show")
 
+            system_info = await self._async_service_json("system/info")
+            if isinstance(system_info.get("result"), dict):
+                self.web_result["system_info"] = system_info["result"]
+            else:
+                self.web_result["system_info"] = {}
+
             easymesh_info = await self._async_service_json("easymesh/info")
             easymesh_config = await self._async_service_json("easymesh/config")
             easymesh_agents = await self._async_service_json("easymesh/show/agent")
+            mesh_info = easymesh_info.get("result")
+            if isinstance(mesh_info, dict) and "active" in mesh_info:
+                self.web_result["easymesh_active"] = bool(mesh_info.get("active"))
+            else:
+                self.web_result["easymesh_active"] = bool(self._ismesh)
             if (
                 easymesh_info.get("result") is not None
                 or easymesh_config.get("result") is not None
@@ -530,16 +576,69 @@ class IPTimeAPI:
             if wan_heartbeat.get("result") is not None:
                 self.web_result["wan_heartbeat"] = wan_heartbeat["result"]
 
-            uptime = None
-            for candidate in (self.web_result.get("wan", {}), self.web_result.get("lan", {})):
-                if isinstance(candidate, dict) and candidate.get("connected_period") is not None:
-                    uptime = candidate.get("connected_period")
-                    break
-            self.web_result["uptime"] = uptime
+            uptime = self.web_result.get("system_info", {}).get("uptime")
+            self.web_result["uptime"] = uptime if isinstance(uptime, (int, float)) and uptime >= 0 else None
             return True
         except Exception as err:
             _LOGGER.debug(f"웹 데이터 수집 실패: {err}")
             return False
+
+    # Summary: Apply only supported controller-global EasyMesh settings.
+    # Related files: switch.py, number.py.
+    async def _async_set_easymesh_global(self, values: Dict[str, Any]) -> bool:
+        """Update supported EasyMesh controller settings without touching other fields."""
+        if not self._beta_ui or not is_easymesh_controller(self.web_result):
+            return False
+        mesh = self.web_result.get("easymesh", {})
+        config = mesh.get("config", {}) if isinstance(mesh, dict) else {}
+        global_config = config.get("global", {}) if isinstance(config, dict) else {}
+        if not isinstance(global_config, dict) or any(key not in global_config for key in values):
+            return False
+
+        response = await self._async_service_json("easymesh/config", {"global": values})
+        if response.get("error") or not response:
+            _LOGGER.warning("EasyMesh 고급 설정 변경 요청이 실패했습니다.")
+            return False
+        self._last_caching_time = 0.0
+        return True
+
+    async def async_set_easymesh_wired_backhaul_lock(self, enabled: bool) -> bool:
+        return await self._async_set_easymesh_global({"bh_wired_lock": bool(enabled)})
+
+    async def async_set_easymesh_density_control(self, enabled: bool) -> bool:
+        mesh = self.web_result.get("easymesh", {})
+        config = mesh.get("config", {}) if isinstance(mesh, dict) else {}
+        global_config = config.get("global", {}) if isinstance(config, dict) else {}
+        density = global_config.get("density_control") if isinstance(global_config, dict) else None
+        if not isinstance(density, dict):
+            return False
+        return await self._async_set_easymesh_global({
+            "density_control": {
+                "enable": bool(enabled),
+                "rssi": int(density.get("rssi", -75)),
+            }
+        })
+
+    async def async_set_easymesh_density_rssi(self, rssi: int) -> bool:
+        if not -100 <= int(rssi) <= -70:
+            return False
+        mesh = self.web_result.get("easymesh", {})
+        config = mesh.get("config", {}) if isinstance(mesh, dict) else {}
+        global_config = config.get("global", {}) if isinstance(config, dict) else {}
+        density = global_config.get("density_control") if isinstance(global_config, dict) else None
+        if not isinstance(density, dict):
+            return False
+        return await self._async_set_easymesh_global({
+            "density_control": {
+                "enable": bool(density.get("enable", False)),
+                "rssi": int(rssi),
+            }
+        })
+
+    async def async_set_easymesh_steering_level(self, level: int) -> bool:
+        if not 1 <= int(level) <= 10:
+            return False
+        return await self._async_set_easymesh_global({"steering_level": int(level)})
 
     async def async_set_web_wireless_bss_enable(self, bss: str, enable: bool) -> bool:
         """Toggle a wireless BSS using the beta UI."""
@@ -577,7 +676,7 @@ class IPTimeAPI:
         return bool(response)
 
     async def async_set_web_geoip_enable(self, enable: bool) -> bool:
-        if not self._beta_ui:
+        if not self._beta_ui or is_easymesh_agent(self.web_result):
             return False
 
         response = await self._async_service_json("geoip/enable", enable)
@@ -588,7 +687,7 @@ class IPTimeAPI:
         return bool(response)
 
     async def async_set_web_geoip_policy(self, policy: str) -> bool:
-        if not self._beta_ui:
+        if not self._beta_ui or is_easymesh_agent(self.web_result):
             return False
 
         response = await self._async_service_json("geoip/policy/set", {"policy": policy})
@@ -1043,6 +1142,8 @@ class IPTimeAPI:
 
     async def async_set_web_wg_server_run(self, run: bool) -> bool:
         """WireGuard 서버 실행 상태를 변경한다. (연결될 파일: switch.py)"""
+        if is_easymesh_agent(self.web_result):
+            return False
         wg_config = self.web_result.get("wg_server", {})
         if not isinstance(wg_config, dict):
             wg_config = {}

@@ -6,7 +6,7 @@ from .api import IPTimeAPI
 from .coordinator import IPTimeDataUpdateCoordinator
 
 # Blocking import 경고 해결을 위한 플랫폼 선행 임포트
-from . import device_tracker, sensor, button, binary_sensor, switch, select
+from . import device_tracker, sensor, button, binary_sensor, switch, select, number
 
 # 요약: ipTIME Manager 통합 구성요소의 진입점 및 초기화 로직
 # 연결될 파일: api.py, coordinator.py, const.py, sensor.py, device_tracker.py, button.py

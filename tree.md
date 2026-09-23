@@ -1,4 +1,4 @@
-Project layout (updated 2026-09-19).
+Project layout (updated 2026-09-23).
 The integration is distributed from custom_components/iptime_manager.
 changelog.jsonl and caution.jsonl are local development records excluded from Git.
 Credential files are intentionally omitted from this listing.
@@ -34,6 +34,7 @@ iptime_manager (root)
         |   coordinator.py
         |   device_tracker.py
         |   manifest.json
+        |   number.py
         |   select.py
         |   sensor.py
         |   strings.json
@@ -52,5 +53,6 @@ Module responsibilities:
 - coordinator.py: collection scheduling, conditional Internet probing, mode-change reload and events.
 - binary_sensor.py: physical Port links, packet Status sensors, Internet Status and EasyMesh entities.
 - sensor.py: diagnostic system sensors and latest WireGuard peer/handshake sensors.
+- number.py: supported EasyMesh controller thresholds (density RSSI and steering level).
 - button.py: diagnostic reboot button.
 - device_tracker.py: primary presence entities outside Diagnostics.

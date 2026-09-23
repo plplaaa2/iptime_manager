@@ -16,6 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
 from .const import DOMAIN, CONF_URL
+from .api import is_easymesh_agent, is_easymesh_controller
 
 # 요약: Web 데이터를 통합하여 시스템 정보 및 네트워크 통계를 제공하는 센서 플랫폼
 # 연결될 파일: coordinator.py, const.py, api.py
@@ -149,13 +150,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     # Summary: Remove only this config entry's retired WireGuard count entity.
     # Related files: api.py, __init__.py.
     registry = er.async_get(hass)
+    web_data = (coordinator.data or {}).get("web", {})
+    agent_mode = is_easymesh_agent(web_data)
+    controller_mode = is_easymesh_controller(web_data)
     old_entity_id = registry.async_get_entity_id(
         "sensor", DOMAIN, f"{entry.entry_id}_wireguard_connected_peer_count"
     )
     if old_entity_id is not None:
         registry.async_remove(old_entity_id)
 
+    agent_only_hidden = {
+        "primary_dns",
+        "secondary_dns",
+        "geoip_blocked_count",
+        "wireguard_last_peer_name",
+        "wireguard_last_handshake",
+    }
+    controller_only_hidden = {"easymesh_agent_count"}
+    if agent_mode:
+        for key in agent_only_hidden:
+            entity_id = registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{key}")
+            if entity_id:
+                registry.async_remove(entity_id)
+
+    if not controller_mode:
+        for key in controller_only_hidden:
+            entity_id = registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{key}")
+            if entity_id:
+                registry.async_remove(entity_id)
+
     for key in SENSOR_TYPES:
+        if (agent_mode and key in agent_only_hidden) or (not controller_mode and key in controller_only_hidden):
+            continue
         entities.append(IPTimeSystemSensor(coordinator, entry, SENSOR_TYPES[key]))
 
     async_add_entities(entities)

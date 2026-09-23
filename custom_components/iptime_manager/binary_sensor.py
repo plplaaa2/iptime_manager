@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
 from .const import DOMAIN, CONF_URL
+from .api import is_easymesh_controller
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,12 +108,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if entity_id:
             registry.async_remove(entity_id)
 
-    mesh_agents = _get_mesh_agents(data.get("web", {}).get("easymesh", {}))
+    web_data = data.get("web", {})
+    mesh_agents = _get_mesh_agents(web_data.get("easymesh", {})) if is_easymesh_controller(web_data) else []
+    current_agent_ids = {
+        f"{entry.entry_id}_easymesh_agent_{_entity_key_part(str(agent.get('mac') or agent.get('al_mac') or agent.get('product_name') or 'agent'))}"
+        for agent in mesh_agents
+    }
+    registry = er.async_get(hass)
+    agent_unique_prefix = f"{entry.entry_id}_easymesh_agent_"
+    for registered in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if (
+            registered.domain == "binary_sensor"
+            and registered.unique_id.startswith(agent_unique_prefix)
+            and registered.unique_id not in current_agent_ids
+        ):
+            registry.async_remove(registered.entity_id)
+
     for agent in mesh_agents:
         entities.append(IPTimeEasyMeshAgentBinarySensor(coordinator, entry, agent))
 
     # Web API 기반 물리 유선 포트 센서만 생성 (무선 Wi-Fi는 스위치 엔티티로 통합 관리하므로 생성 제외)
-    web_data = data.get("web", {})
     web_ports = web_data.get("ports", [])
 
     if web_ports:
@@ -246,7 +261,6 @@ class IPTimeEasyMeshAgentBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_name = f"EasyMesh Agent {self._mac or self._agent_key} ({entry.data.get(CONF_URL)})"
         self._attr_unique_id = f"{entry.entry_id}_easymesh_agent_{self._agent_key}"
         self._attr_icon = "mdi:access-point"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def _current_agent(self) -> Dict[str, Any]:
         data = self.coordinator.data or {}

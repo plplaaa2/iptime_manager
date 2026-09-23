@@ -9,9 +9,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN, CONF_URL
-from .api import format_channel_string
+from .api import format_channel_string, is_easymesh_agent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,7 +54,14 @@ def _option_to_policy(option: str) -> tuple[bool, str]:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     web_data = (coordinator.data or {}).get("web", {})
-    entities = [IPTimeGeoIPSelect(coordinator, entry)]
+    agent_mode = is_easymesh_agent(web_data)
+    entities = [] if agent_mode else [IPTimeGeoIPSelect(coordinator, entry)]
+
+    if agent_mode:
+        registry = er.async_get(hass)
+        entity_id = registry.async_get_entity_id("select", DOMAIN, f"{entry.entry_id}_geoip_policy")
+        if entity_id:
+            registry.async_remove(entity_id)
     
     if coordinator.api._beta_ui:
         # LED 설정이 지원되는 모델일 경우에만 생성

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added EasyMesh controller controls for wired backhaul lock, dense configuration, station RSSI limit and steering level.
+- Restricted controller controls to active controllers and hid GeoIP, WireGuard and DNS entities in Agent mode.
+- Read router uptime from `system/info.uptime` instead of WAN/LAN connection duration.
+
 ## [1.0.8] - beta2 (2026-09-19)
 
 - Replaced WireGuard peer count with the latest peer name and handshake time.
