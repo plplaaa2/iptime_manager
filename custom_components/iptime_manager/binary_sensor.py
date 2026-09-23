@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
 from .const import DOMAIN, CONF_URL
+from .api import get_easymesh_agents, is_easymesh_agent_connected, is_easymesh_controller
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,12 +108,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if entity_id:
             registry.async_remove(entity_id)
 
-    mesh_agents = _get_mesh_agents(data.get("web", {}).get("easymesh", {}))
+    web_data = data.get("web", {})
+    mesh_agents = get_easymesh_agents(web_data.get("easymesh", {})) if is_easymesh_controller(web_data) else []
+    current_agent_ids = {
+        f"{entry.entry_id}_easymesh_agent_{_entity_key_part(str(agent.get('mac') or agent.get('al_mac') or agent.get('product_name') or 'agent'))}"
+        for agent in mesh_agents
+    }
+    registry = er.async_get(hass)
+    agent_unique_prefix = f"{entry.entry_id}_easymesh_agent_"
+    for registered in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if (
+            registered.domain == "binary_sensor"
+            and registered.unique_id.startswith(agent_unique_prefix)
+            and registered.unique_id not in current_agent_ids
+        ):
+            registry.async_remove(registered.entity_id)
+
     for agent in mesh_agents:
         entities.append(IPTimeEasyMeshAgentBinarySensor(coordinator, entry, agent))
 
     # Web API 기반 물리 유선 포트 센서만 생성 (무선 Wi-Fi는 스위치 엔티티로 통합 관리하므로 생성 제외)
-    web_data = data.get("web", {})
     web_ports = web_data.get("ports", [])
 
     if web_ports:
@@ -124,18 +139,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 entities.append(IPTimePortActivityBinarySensor(coordinator, entry, f"{port_type}:{port_num}", port_info=port_info))
 
     async_add_entities(entities)
-
-
-def _get_mesh_agents(mesh_data: Dict[str, Any]) -> list[Dict[str, Any]]:
-    """Normalize EasyMesh agent responses from different firmware versions."""
-    if not isinstance(mesh_data, dict):
-        return []
-    raw_agents = mesh_data.get("agents", mesh_data.get("agent", []))
-    if isinstance(raw_agents, dict):
-        raw_agents = raw_agents.get("agent", raw_agents.get("list", []))
-    if not isinstance(raw_agents, list):
-        return []
-    return [agent for agent in raw_agents if isinstance(agent, dict)]
 
 
 class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEntity):
@@ -246,12 +249,11 @@ class IPTimeEasyMeshAgentBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_name = f"EasyMesh Agent {self._mac or self._agent_key} ({entry.data.get(CONF_URL)})"
         self._attr_unique_id = f"{entry.entry_id}_easymesh_agent_{self._agent_key}"
         self._attr_icon = "mdi:access-point"
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def _current_agent(self) -> Dict[str, Any]:
         data = self.coordinator.data or {}
         mesh_data = data.get("web", {}).get("easymesh", {})
-        for agent in _get_mesh_agents(mesh_data):
+        for agent in get_easymesh_agents(mesh_data):
             mac = str(agent.get("mac") or agent.get("al_mac") or "").strip().lower()
             if mac == self._mac:
                 return agent
@@ -262,7 +264,7 @@ class IPTimeEasyMeshAgentBinarySensor(CoordinatorEntity, BinarySensorEntity):
         agent = self._current_agent()
         if not agent:
             return False
-        return bool(agent.get("connected", agent.get("active", agent.get("online", True))))
+        return is_easymesh_agent_connected(agent)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -272,6 +274,7 @@ class IPTimeEasyMeshAgentBinarySensor(CoordinatorEntity, BinarySensorEntity):
             "nickname": agent.get("nickname"),
             "product_name": agent.get("product_name"),
             "backhaul": agent.get("backhaul") or agent.get("connection"),
+            "status": agent.get("status"),
             "controller_mac": agent.get("controller_mac"),
         }
 

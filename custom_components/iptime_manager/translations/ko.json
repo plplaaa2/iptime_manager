@@ -46,5 +46,11 @@
         "data": {"name": "이름"}
       }
     }
+  },
+  "entity": {
+    "switch": {
+      "easymesh_wired_backhaul_lock": {"name": "EasyMesh 유선 백홀 고정"},
+      "easymesh_density_control": {"name": "EasyMesh 메시 밀집 구성"}
+    }
   }
 }

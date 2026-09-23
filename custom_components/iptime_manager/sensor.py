@@ -16,6 +16,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
 from .const import DOMAIN, CONF_URL
+from .api import (
+    get_easymesh_agents,
+    get_easymesh_role,
+    is_easymesh_agent,
+    is_easymesh_agent_connected,
+    is_easymesh_controller,
+)
 
 # 요약: Web 데이터를 통합하여 시스템 정보 및 네트워크 통계를 제공하는 센서 플랫폼
 # 연결될 파일: coordinator.py, const.py, api.py
@@ -35,6 +42,13 @@ SENSOR_TYPES: Dict[str, SensorEntityDescription] = {
         key="model",
         name="Model",
         icon="mdi:router-wireless",
+    ),
+    # Summary: Expose the current EasyMesh/router role as a diagnostic sensor.
+    # Related files: api.py, coordinator.py, binary_sensor.py.
+    "router_mode": SensorEntityDescription(
+        key="router_mode",
+        name="Router Mode",
+        icon="mdi:router-network",
     ),
     "version": SensorEntityDescription(
         key="version",
@@ -110,6 +124,14 @@ def _web_sensor_value(web_data: Dict[str, Any], key: str) -> Any:
         return web_data.get("uptime") if isinstance(web_data, dict) else None
     if key == "model":
         return web_data.get("model", "ipTIME Router") if isinstance(web_data, dict) else "ipTIME Router"
+    if key == "router_mode":
+        role = get_easymesh_role(web_data)
+        labels = {
+            "controller": "Controller",
+            "agent": "Agent",
+            "alone": "Alone",
+        }
+        return labels.get(role, role.replace("_", " ").title() if role else "Unknown")
     if key == "version":
         return firmware.get("version")
     if key == "latest_version":
@@ -128,10 +150,8 @@ def _web_sensor_value(web_data: Dict[str, Any], key: str) -> Any:
         return web_data.get("geoip_blocked_pcount") if isinstance(web_data, dict) else None
     if key == "easymesh_agent_count":
         mesh = web_data.get("easymesh", {}) if isinstance(web_data, dict) else {}
-        agents = mesh.get("agents", {}) if isinstance(mesh, dict) else {}
-        if isinstance(agents, dict):
-            agents = agents.get("agent", [])
-        return len(agents) if isinstance(agents, list) else 0
+        agents = get_easymesh_agents(mesh)
+        return sum(1 for agent in agents if is_easymesh_agent_connected(agent))
     # Summary: Return the latest peer metadata calculated at API collection time.
     # Related files: api.py.
     if key in ("wireguard_last_peer_name", "wireguard_last_handshake"):
@@ -149,13 +169,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     # Summary: Remove only this config entry's retired WireGuard count entity.
     # Related files: api.py, __init__.py.
     registry = er.async_get(hass)
+    web_data = (coordinator.data or {}).get("web", {})
+    agent_mode = is_easymesh_agent(web_data)
+    controller_mode = is_easymesh_controller(web_data)
     old_entity_id = registry.async_get_entity_id(
         "sensor", DOMAIN, f"{entry.entry_id}_wireguard_connected_peer_count"
     )
     if old_entity_id is not None:
         registry.async_remove(old_entity_id)
 
+    agent_only_hidden = {
+        "primary_dns",
+        "secondary_dns",
+        "geoip_blocked_count",
+        "wireguard_last_peer_name",
+        "wireguard_last_handshake",
+    }
+    controller_only_hidden = {"easymesh_agent_count"}
+    if agent_mode:
+        for key in agent_only_hidden:
+            entity_id = registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{key}")
+            if entity_id:
+                registry.async_remove(entity_id)
+
+    if not controller_mode:
+        for key in controller_only_hidden:
+            entity_id = registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{key}")
+            if entity_id:
+                registry.async_remove(entity_id)
+
     for key in SENSOR_TYPES:
+        if (agent_mode and key in agent_only_hidden) or (not controller_mode and key in controller_only_hidden):
+            continue
         entities.append(IPTimeSystemSensor(coordinator, entry, SENSOR_TYPES[key]))
 
     async_add_entities(entities)

@@ -1,12 +1,14 @@
 # ipTIME Manager Web API Reference
 
-## Verified monitoring behavior (2026-09-19, dev)
+## Verified monitoring behavior (2026-09-23, dev)
 
 - `port/stat/get` with no parameters returns a list keyed by `type` and `port`. Each item has `rx` and `tx` dictionaries with cumulative `packet`, `byte`, `bcast`, `mcast` and other counters. RX also exposed `error`, `drop`, `crc`, `frag`, `pause`; TX exposed `coll`, `pause`. These are counters, not packet payloads.
 - `port/link/status` provides the physical link. Port Status compares successive packet counters and requires RX and TX activity within 30 seconds. Initial connected samples and counter resets are unknown; missing statistics clear the baseline. No traffic does not prove network failure. Physical Port entities retain their existing `_status` unique ID suffix; new traffic entities use `_activity`.
 - Router-mode detection uses the boolean response from `nat/config`, `enable` from `network/interface/wan1/config`, and optional `port/role`. NAT or WAN disabled, or role `lan`, suppresses Internet Status and its probe. NAT and WAN both enabled allow monitoring. Unknown mode does not create a new Internet entity. The inspected router did not support `port/role`; its UI does reference the method for supported models.
 - Internet Status uses the existing `_internet_connectivity` unique ID and an HTTPS check from the HA host, at the web polling interval (minimum 5 seconds). It is not a router-originated probe. Confirmed mode changes trigger integration reload; an Internet outage alone does not remove the sensor.
 - Reboot is a diagnostic button. Presence trackers explicitly override the inherited diagnostic category with `None` and retain their `device_tracker` domain and IDs.
+- `system/info` reports router `uptime` in seconds and the EasyMesh role on the inspected Agent router. Use this router-level uptime rather than WAN/LAN `connected_period`, which measures interface connection duration.
+- `easymesh/info` reports active state and role; `easymesh/config` exposes controller-global `bh_wired_lock`, `density_control` (enable and RSSI), and `steering_level` fields. Density and steering settings use partial `easymesh/config` updates under `global`; setting writes are role-gated in the integration.
 
 
 

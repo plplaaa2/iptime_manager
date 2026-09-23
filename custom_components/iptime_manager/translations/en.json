@@ -46,5 +46,11 @@
         "data": {"name": "Name"}
       }
     }
+  },
+  "entity": {
+    "switch": {
+      "easymesh_wired_backhaul_lock": {"name": "EasyMesh Wired Backhaul Lock"},
+      "easymesh_density_control": {"name": "EasyMesh Dense Configuration"}
+    }
   }
 }

@@ -6,12 +6,24 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.translation import async_get_translations
 from .const import *
-from .api import IPTimeAPI
+from .api import IPTimeAPI, get_easymesh_role
 
 # 요약: Web 및 SNMP 데이터를 통합하여 엔티티에 제공하는 중앙 코디네이터
 # 연결된 파일: api.py, const.py, __init__.py, sensor.py, device_tracker.py
 
 _LOGGER = logging.getLogger(__name__)
+
+
+# Summary: Detect density-control activation changes that add or remove its RSSI number entity.
+# Related files: api.py, switch.py, number.py.
+def _easymesh_density_enabled(web_data: Dict[str, Any]) -> Optional[bool]:
+    mesh = web_data.get("easymesh", {}) if isinstance(web_data, dict) else {}
+    config = mesh.get("config", {}) if isinstance(mesh, dict) else {}
+    global_config = config.get("global", {}) if isinstance(config, dict) else {}
+    density = global_config.get("density_control") if isinstance(global_config, dict) else None
+    enabled = density.get("enable") if isinstance(density, dict) else None
+    return enabled if isinstance(enabled, bool) else None
+
 
 class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
     """ipTIME API 데이터를 관리하는 중앙 코디네이터"""
@@ -21,6 +33,7 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
         self.entry = entry
         self._last_web_update = 0.0
         self._firmware_update_notified = False
+        self._entity_reload_pending = False
         
         scan_interval = entry.options.get(
             CONF_SCAN_INTERVAL,
@@ -71,6 +84,30 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 "devices": copy.deepcopy(self.api.result),
                 "web": copy.deepcopy(self.api.web_result),
             }
+
+            # Summary: Reload entities when EasyMesh mode or density-control entity support changes.
+            # Related files: api.py, sensor.py, binary_sensor.py, select.py, switch.py, number.py.
+            old_web = (self.data or {}).get("web", {})
+            old_role = get_easymesh_role(old_web)
+            new_role = get_easymesh_role(combined_data["web"])
+            old_density_enabled = _easymesh_density_enabled(old_web)
+            new_density_enabled = _easymesh_density_enabled(combined_data["web"])
+            density_changed = (
+                old_density_enabled is not None
+                and new_density_enabled is not None
+                and old_density_enabled != new_density_enabled
+            )
+            role_changed = bool(old_role and new_role and old_role != new_role)
+            if self.data and (role_changed or density_changed) and not self._entity_reload_pending:
+                self._entity_reload_pending = True
+
+                async def reload_for_entity_support_change() -> None:
+                    try:
+                        await self.hass.config_entries.async_reload(self.entry.entry_id)
+                    finally:
+                        self._entity_reload_pending = False
+
+                self.hass.async_create_task(reload_for_entity_support_change())
 
             # 4. 외부 인터넷(WAN) 연결 상태 변화 감지 및 HA 알림 생성
             if self.data:

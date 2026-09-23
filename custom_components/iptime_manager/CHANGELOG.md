@@ -1,19 +1,32 @@
 # Changelog
 
-## [1.0.8] - beta2 (2026-09-19)
+## [1.0.8] - 2026-09-24
+
+### Changed
+
+- Added EasyMesh controller controls for wired backhaul lock, dense configuration, station RSSI limit and steering level.
+- Restricted controller controls to active controllers and hid GeoIP, WireGuard and DNS entities in Agent mode.
+- Read router uptime from `system/info.uptime` instead of WAN/LAN connection duration.
+- Added a diagnostic Router Mode sensor and a default-disabled EasyMesh controller mode switch.
+- Count only connected EasyMesh agents in the Agent Count sensor.
+
+### Fixed
+
+- Fixed EasyMesh controller 5 GHz channel selector values by matching bonded channels on their primary channel number.
+- Corrected the EasyMesh density RSSI range to match the router UI (`-100` to `-40 dBm`).
+- Registered EasyMesh controller controls from the detected controller role and supported settings, independently of the generic beta UI control block.
+- Renamed EasyMesh number entities consistently and show the density RSSI number only while dense configuration is enabled.
+- Fixed EasyMesh Agent binary sensors to report disconnected agents from their status and backhaul fields.
 
 - Replaced WireGuard peer count with the latest peer name and handshake time.
 - Separated WAN/LAN physical Port sensors from traffic Status sensors.
 - Renamed Internet Connectivity to Internet Status and excluded detected hub/AP mode.
 - Moved reboot into Diagnostics and presence trackers into the main entity section.
-
-> **beta2:** Existing WAN/LAN Status sensors are renamed to WAN/LAN Port, and Internet Connectivity to Internet Status. Review dashboard and automation references after updating; the new WAN/LAN Status sensors report traffic activity instead of physical link state.
-
-## [1.0.8] - beta1 2026-09-17
-
 - Added Internet Connectivity monitoring.
 - Fixed Wi-Fi channel reporting and WireGuard peer discovery.
 - Improved HACS compatibility and translations.
+
+- **Migration note:** Existing WAN/LAN Status sensors are renamed to WAN/LAN Port, and Internet Connectivity to Internet Status. Review dashboard and automation references after updating; the new WAN/LAN Status sensors report traffic activity instead of physical link state.
 
 ## [1.0.7] - 2026-08-05
 
