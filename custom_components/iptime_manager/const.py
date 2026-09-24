@@ -12,7 +12,7 @@ PLATFORMS: list[Platform] = [
     Platform.NUMBER,
 ]
 
-PRESENCE_LIST_PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR]
+PRESENCE_LIST_PLATFORMS: list[Platform] = [Platform.DEVICE_TRACKER]
 
 CONF_URL = 'iptime_url'
 CONF_ENTRY_TYPE = 'entry_type'

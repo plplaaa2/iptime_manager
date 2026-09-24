@@ -17,9 +17,6 @@ from homeassistant.config_entries import ConfigEntry
 from .const import (
     DOMAIN,
     CONF_URL,
-    CONF_ENTRY_TYPE,
-    CONF_TARGET,
-    ENTRY_TYPE_PRESENCE_LIST,
 )
 from .api import get_easymesh_agents, is_easymesh_agent_connected, is_easymesh_controller
 
@@ -99,25 +96,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     # 요약: ipTIME 유선 포트(LAN/WAN) 연결 상태 이진 센서를 설정한다.
     # 연결될 파일: coordinator.py, binary_sensor.py
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST:
-        registry = er.async_get(hass)
-        targets = entry.options.get(CONF_TARGET, entry.data.get(CONF_TARGET, []))
-        current_unique_ids = {
-            f"{entry.entry_id}_presence_{str(mac).replace(':', '').replace('-', '').lower()}"
-            for mac in targets
-        }
-        for registered in er.async_entries_for_config_entry(registry, entry.entry_id):
-            if (
-                registered.domain == "binary_sensor"
-                and registered.unique_id.startswith(f"{entry.entry_id}_presence_")
-                and registered.unique_id not in current_unique_ids
-            ):
-                registry.async_remove(registered.entity_id)
-        async_add_entities(
-            [IPTimePresenceBinarySensor(coordinator, entry, mac) for mac in targets]
-        )
-        return
-
     data = coordinator.data if coordinator.data else {}
     entities = []
 
@@ -164,43 +142,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 entities.append(IPTimePortActivityBinarySensor(coordinator, entry, f"{port_type}:{port_num}", port_info=port_info))
 
     async_add_entities(entities)
-
-
-class IPTimePresenceBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    """Presence entity for one selected device under the Home Presence device."""
-
-    def __init__(self, coordinator, entry: ConfigEntry, mac: str) -> None:
-        super().__init__(coordinator)
-        self._entry = entry
-        self._mac = str(mac).replace(":", "").replace("-", "").lower()
-        names = entry.options.get("device_names", entry.data.get("device_names", {}))
-        self._attr_name = names.get(self._mac, self._mac)
-        self._attr_unique_id = f"{entry.entry_id}_presence_{self._mac}"
-        self._attr_device_class = BinarySensorDeviceClass.PRESENCE
-        self._attr_icon = "mdi:home-account"
-
-    @property
-    def is_on(self) -> bool:
-        return self._mac in (self.coordinator.data or {}).get("devices", {})
-
-    @property
-    def available(self) -> bool:
-        return super().available and bool((self.coordinator.data or {}).get("eligible"))
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        devices = (self.coordinator.data or {}).get("devices", {})
-        return dict(devices.get(self._mac, {}))
-
-    @property
-    def device_info(self) -> dict[str, Any]:
-        # Summary: Attach each selected-device entity to one shared Home Presence device.
-        # Related files: config_flow.py, presence.py.
-        return {
-            "identifiers": {(DOMAIN, "home_presence")},
-            "name": "Home Presence",
-            "manufacturer": "ipTIME",
-        }
 
 
 class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEntity):
