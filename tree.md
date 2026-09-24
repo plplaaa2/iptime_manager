@@ -39,7 +39,6 @@ iptime_manager (root)
         |   presence.py
         |   select.py
         |   sensor.py
-        |   strings.json
         |   switch.py
         |   
         +---brand
