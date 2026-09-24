@@ -181,11 +181,11 @@ class IPTimePresenceListBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def device_info(self) -> dict[str, Any]:
+        # Summary: Attach every presence-list entity to one shared integration device.
+        # Related files: config_flow.py, presence.py.
         return {
-            "identifiers": {(DOMAIN, f"{self._entry.entry_id}_presence_list")},
-            "name": self._entry.options.get(
-                CONF_NAME, self._entry.data.get(CONF_NAME, self._entry.title)
-            ),
+            "identifiers": {(DOMAIN, "presence_lists")},
+            "name": "ipTIME 재실 센서",
             "manufacturer": "ipTIME",
         }
 
