@@ -14,7 +14,13 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
-from .const import DOMAIN, CONF_URL
+from .const import (
+    DOMAIN,
+    CONF_URL,
+    CONF_ENTRY_TYPE,
+    CONF_NAME,
+    ENTRY_TYPE_PRESENCE_LIST,
+)
 from .api import get_easymesh_agents, is_easymesh_agent_connected, is_easymesh_controller
 
 _LOGGER = logging.getLogger(__name__)
@@ -93,6 +99,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     # 요약: ipTIME 유선 포트(LAN/WAN) 연결 상태 이진 센서를 설정한다.
     # 연결될 파일: coordinator.py, binary_sensor.py
     coordinator = hass.data[DOMAIN][entry.entry_id]
+    if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST:
+        async_add_entities([IPTimePresenceListBinarySensor(coordinator, entry)])
+        return
+
     data = coordinator.data if coordinator.data else {}
     entities = []
 
@@ -139,6 +149,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 entities.append(IPTimePortActivityBinarySensor(coordinator, entry, f"{port_type}:{port_num}", port_info=port_info))
 
     async_add_entities(entities)
+
+
+class IPTimePresenceListBinarySensor(CoordinatorEntity, BinarySensorEntity):
+    """One aggregate presence entity for a configured list of devices."""
+
+    def __init__(self, coordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._attr_name = entry.options.get(CONF_NAME, entry.data.get(CONF_NAME, entry.title))
+        self._attr_unique_id = f"{entry.entry_id}_presence_list"
+        self._attr_device_class = BinarySensorDeviceClass.PRESENCE
+        self._attr_icon = "mdi:home-account"
+
+    @property
+    def is_on(self) -> bool:
+        return bool((self.coordinator.data or {}).get("devices"))
+
+    @property
+    def available(self) -> bool:
+        return super().available and bool((self.coordinator.data or {}).get("eligible"))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        devices = (self.coordinator.data or {}).get("devices", {})
+        return {
+            "present_count": len(devices),
+            "present_devices": sorted(info.get("name", mac) for mac, info in devices.items()),
+            "selected_count": (self.coordinator.data or {}).get("selected_count", 0),
+        }
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        return {
+            "identifiers": {(DOMAIN, f"{self._entry.entry_id}_presence_list")},
+            "name": self._entry.options.get(
+                CONF_NAME, self._entry.data.get(CONF_NAME, self._entry.title)
+            ),
+            "manufacturer": "ipTIME",
+        }
 
 
 class IPTimeInternetConnectivityBinarySensor(CoordinatorEntity, BinarySensorEntity):

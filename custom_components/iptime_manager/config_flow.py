@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import hashlib
 from typing import Any
 
 import voluptuous as vol
@@ -17,7 +18,7 @@ except ImportError:
     SsdpServiceInfo = Any
 
 from .const import *
-from .api import IPTimeAPI
+from .api import IPTimeAPI, get_easymesh_role
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +38,63 @@ def _format_mac(mac: str) -> str:
         return ":".join(clean[i:i+2] for i in range(0, 12, 2))
     return clean
 
+
+def _presence_inventory(hass) -> tuple[bool, dict[str, str]]:
+    """Return presence-list eligibility and known clients from all router entries."""
+    coordinators = hass.data.get(DOMAIN, {})
+    entries = {
+        entry.entry_id: entry
+        for entry in hass.config_entries.async_entries(DOMAIN)
+        if entry.data.get(CONF_ENTRY_TYPE) != ENTRY_TYPE_PRESENCE_LIST
+    }
+    eligible = False
+    options: dict[str, str] = {}
+
+    for entry_id, entry in entries.items():
+        coordinator = coordinators.get(entry_id)
+        if (
+            coordinator is None
+            or coordinator.last_update_success is False
+            or (coordinator.data or {}).get("presence_scan_success") is False
+        ):
+            continue
+
+        web_data = (coordinator.data or {}).get("web", {})
+        role = get_easymesh_role(web_data)
+        configured_mode = entry.options.get(
+            CONF_DEVICE_MODE,
+            entry.data.get(CONF_DEVICE_MODE, DEFAULT_DEVICE_MODE),
+        )
+        if role != "agent" and (
+            role in ("controller", "alone")
+            or configured_mode in (DEVICE_MODE_SINGLE, DEVICE_MODE_CONTROLLER)
+        ):
+            eligible = True
+
+        known_names = entry.data.get("devices", {})
+        devices = (coordinator.data or {}).get("devices", {})
+        for mac, info in devices.items():
+            if mac == "session" or not isinstance(info, dict):
+                continue
+            normalized_mac = str(mac).replace(":", "").replace("-", "").lower()
+            ip = info.get("ip", "N/A")
+            name = known_names.get(mac) or known_names.get(normalized_mac) or info.get("name")
+            formatted_mac = _format_mac(normalized_mac)
+            label = f"{name} ({ip}, {formatted_mac})" if name else f"{ip} ({formatted_mac})"
+            if _is_private_mac(normalized_mac):
+                label = f"[임의 MAC / Private MAC] {label}"
+            options[normalized_mac] = label
+
+        # Keep previously configured clients selectable even while offline.
+        for mac, name in entry.data.get("devices", {}).items():
+            normalized_mac = str(mac).replace(":", "").replace("-", "").lower()
+            if normalized_mac not in options:
+                formatted_mac = _format_mac(normalized_mac)
+                prefix = "[임의 MAC / Private MAC] " if _is_private_mac(normalized_mac) else ""
+                options[normalized_mac] = f"{prefix}{name} (오프라인 - {formatted_mac})"
+
+    return eligible, options
+
 class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """ipTIME Manager 설정 흐름."""
     
@@ -45,7 +103,6 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self.temp_config: Dict[str, Any] = {}
         self.selected_macs: List[str] = []
-        self.device_map: Dict[str, str] = {}
 
     async def async_step_ssdp(self, discovery_info: SsdpServiceInfo) -> FlowResult:
         """SSDP 자동 탐지 처리."""
@@ -65,26 +122,29 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # 중복 체크
             await self.async_set_unique_id(url)
             self._abort_if_unique_id_configured()
-            return await self.async_step_user()
+            return await self.async_step_router()
             
         return self.async_abort(reason="cannot_connect")
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """사용자 입력 처리 (1단계)."""
+        """공유기 또는 재실 센서 목록 추가 방식을 선택한다."""
+        return self.async_show_menu(step_id="user", menu_options=["router", "presence"])
+
+    async def async_step_router(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """기존 공유기 추가 흐름."""
         if user_input is not None:
             self.temp_config = user_input
             # URL 기반 Unique ID 설정
             await self.async_set_unique_id(user_input[CONF_URL])
             self._abort_if_unique_id_configured()
-            return await self.async_step_select_devices()
+            return await self.async_step_validate_router()
 
         return self.async_show_form(
-            step_id="user",
+            step_id="router",
             data_schema=vol.Schema({
                 vol.Required(CONF_URL, default=self.temp_config.get(CONF_URL, "")): str,
                 vol.Required(CONF_ID): str,
                 vol.Required(CONF_PASSWORD): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
-                vol.Optional(CONF_CONSIDER_HOME, default=DEFAULT_CONSIDER_HOME): int,
                 vol.Optional(CONF_RSSI_LIMIT, default=DEFAULT_RSSI_LIMIT): int,
                 vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
                 vol.Required(CONF_DEVICE_MODE, default=DEFAULT_DEVICE_MODE): selector.SelectSelector(
@@ -96,8 +156,8 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             })
         )
 
-    async def async_step_select_devices(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """추적 대상 기기 선택 (2단계)."""
+    async def async_step_validate_router(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Validate credentials and add the router without creating per-device trackers."""
         errors: dict[str, str] = {}
         api = IPTimeAPI(self.hass, self.temp_config[CONF_URL], self.temp_config[CONF_ID], self.temp_config[CONF_PASSWORD])
         
@@ -114,57 +174,86 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await api.async_close()
 
         if not errors:
-            options = {}
-            for mac, info in api.result.items():
-                if mac == "session" or not isinstance(info, dict):
-                    continue
-                ip = info.get("ip", "N/A")
-                formatted_mac = _format_mac(mac)
-                if _is_private_mac(mac):
-                    options[mac] = f"[임의 MAC / Private MAC] {ip} ({formatted_mac})"
-                else:
-                    options[mac] = f"{ip} ({formatted_mac})"
-            if not options:
-                errors["base"] = "no_devices_found"
-            elif user_input is not None:
-                self.selected_macs = user_input[CONF_TARGET]
-                return await self.async_step_name_devices()
-            
-            return self.async_show_form(
-                step_id="select_devices", 
-                data_schema=vol.Schema({vol.Required(CONF_TARGET): cv.multi_select(options)}),
-                errors=errors
+            return self.async_create_entry(
+                title=f"ipTIME ({self.temp_config[CONF_URL]})",
+                data={**self.temp_config, CONF_ENTRY_TYPE: ENTRY_TYPE_ROUTER, "devices": {}},
             )
 
         return self.async_show_form(
-            step_id="user",
+            step_id="router",
             data_schema=vol.Schema({
                 vol.Required(CONF_URL, default=self.temp_config.get(CONF_URL)): str,
                 vol.Required(CONF_ID, default=self.temp_config.get(CONF_ID)): str,
                 vol.Required(CONF_PASSWORD, default=self.temp_config.get(CONF_PASSWORD)): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)),
-                vol.Optional(CONF_CONSIDER_HOME, default=self.temp_config.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)): int,
                 vol.Optional(CONF_RSSI_LIMIT, default=self.temp_config.get(CONF_RSSI_LIMIT, DEFAULT_RSSI_LIMIT)): int,
                 vol.Optional(CONF_SCAN_INTERVAL, default=self.temp_config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)): int,
+                vol.Required(CONF_DEVICE_MODE, default=self.temp_config.get(CONF_DEVICE_MODE, DEFAULT_DEVICE_MODE)): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[DEVICE_MODE_AUTO, DEVICE_MODE_SINGLE, DEVICE_MODE_CONTROLLER, DEVICE_MODE_AGENT],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
             }),
             errors=errors
         )
 
-    async def async_step_name_devices(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """기기 이름 설정 (3단계)."""
+    def _presence_inventory(self) -> tuple[bool, dict[str, str]]:
+        """Return whether presence lists are allowed and known devices from all routers."""
+        return _presence_inventory(self.hass)
+
+    async def async_step_presence(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Select currently known devices for one aggregate presence sensor."""
+        eligible, options = self._presence_inventory()
+        if not eligible:
+            return self.async_abort(reason="no_eligible_router")
+        if not options:
+            return self.async_abort(reason="no_devices_found")
+
         if user_input is not None:
-            self.device_map[self.selected_macs.pop(0)] = user_input[CONF_NAME]
-            if self.selected_macs:
-                return await self.async_step_name_devices()
+            self.selected_macs = user_input[CONF_TARGET]
+            if not self.selected_macs:
+                return self.async_show_form(
+                    step_id="presence",
+                    data_schema=vol.Schema({vol.Required(CONF_TARGET): cv.multi_select(options)}),
+                    errors={"base": "no_devices_found"},
+                )
+            return await self.async_step_presence_name()
+
+        return self.async_show_form(
+            step_id="presence",
+            data_schema=vol.Schema({vol.Required(CONF_TARGET): cv.multi_select(options)}),
+        )
+
+    async def async_step_presence_name(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Name the aggregate presence sensor."""
+        if user_input is not None:
+            name = str(user_input[CONF_NAME]).strip()
+            if not name:
+                return self.async_show_form(
+                    step_id="presence_name",
+                    data_schema=vol.Schema({vol.Required(CONF_NAME): str}),
+                    errors={"base": "invalid_name"},
+                )
+
+            name_key = hashlib.sha256(name.casefold().encode("utf-8")).hexdigest()[:16]
+            await self.async_set_unique_id(f"presence_list_{name_key}")
+            self._abort_if_unique_id_configured()
+            _, inventory = self._presence_inventory()
+            selected_names = {mac: inventory.get(mac, _format_mac(mac)) for mac in self.selected_macs}
             return self.async_create_entry(
-                title=f"ipTIME ({self.temp_config[CONF_URL]})", 
-                data={**self.temp_config, "devices": self.device_map}
+                title=name,
+                data={
+                    CONF_ENTRY_TYPE: ENTRY_TYPE_PRESENCE_LIST,
+                    CONF_NAME: name,
+                    CONF_TARGET: self.selected_macs,
+                    "devices": selected_names,
+                    CONF_CONSIDER_HOME: DEFAULT_CONSIDER_HOME,
+                },
             )
 
-        next_mac = self.selected_macs[0]
         return self.async_show_form(
-            step_id="name_devices", 
-            data_schema=vol.Schema({vol.Required(CONF_NAME, default=f"iptime_{next_mac}"): str}), 
-            description_placeholders={"mac_address": next_mac}
+            step_id="presence_name",
+            data_schema=vol.Schema({vol.Required(CONF_NAME, default="Home Presence"): str}),
         )
 
     @staticmethod
@@ -178,60 +267,21 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         super().__init__()
         self._config_entry = config_entry
-        self.new_macs: List[str] = []
-        self.device_map = dict(config_entry.data.get("devices", {}))
-        self.temp_options: Dict[str, Any] = {}
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """옵션 초기화 단계."""
+        if self._config_entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST:
+            return await self.async_step_presence_list(user_input)
+
         if user_input is not None:
-            selected = user_input.get(CONF_TARGET, [])
-            self.new_macs = [mac for mac in selected if mac not in self.device_map]
-            # device_map은 파괴하지 않고 보존하며, temp_options에 targets를 안전하게 분리 저장
-            self.temp_options = {
-                CONF_CONSIDER_HOME: user_input[CONF_CONSIDER_HOME],
-                CONF_TARGET: selected,
-                CONF_RSSI_LIMIT: user_input[CONF_RSSI_LIMIT],
-                CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
-                CONF_DEVICE_MODE: user_input[CONF_DEVICE_MODE],
-            }
-            
-            if user_input.get("add_manual"):
-                return await self.async_step_add_manual()
-            if self.new_macs:
-                return await self.async_step_name_new_devices()
-            return self._save_config()
-
-        options: dict[str, str] = {}
-        coordinator = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
-        if coordinator and coordinator.data:
-            devices = coordinator.data.get("devices", {})
-            for mac, info in devices.items():
-                if mac != "session" and isinstance(info, dict):
-                    ip = info.get('ip', 'N/A')
-                    formatted_mac = _format_mac(mac)
-                    if _is_private_mac(mac):
-                        options[mac] = f"[임의 MAC / Private MAC] {ip} ({formatted_mac})"
-                    else:
-                        options[mac] = f"{ip} ({formatted_mac})"
-        
-        for mac, name in self.device_map.items():
-            if mac not in options:
-                formatted_mac = _format_mac(mac)
-                if _is_private_mac(mac):
-                    options[mac] = f"[임의 MAC / Private MAC] {name} (오프라인 - {formatted_mac})"
-                else:
-                    options[mac] = f"{name} (오프라인 - {formatted_mac})"
-            
-        current_timeout = self._config_entry.options.get(
-            CONF_CONSIDER_HOME, 
-            self._config_entry.data.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)
-        )
-
-        current_targets = self._config_entry.options.get(
-            CONF_TARGET,
-            list(self.device_map.keys())
-        )
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_RSSI_LIMIT: user_input[CONF_RSSI_LIMIT],
+                    CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL],
+                    CONF_DEVICE_MODE: user_input[CONF_DEVICE_MODE],
+                },
+            )
 
         current_rssi_limit = self._config_entry.options.get(
             CONF_RSSI_LIMIT,
@@ -251,65 +301,79 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init", 
             data_schema=vol.Schema({
-                vol.Optional(CONF_TARGET, default=current_targets): cv.multi_select(options),
-                vol.Required(CONF_CONSIDER_HOME, default=current_timeout): int,
-                vol.Optional(CONF_RSSI_LIMIT, default=current_rssi_limit): int,
-                vol.Optional(CONF_SCAN_INTERVAL, default=current_scan_interval): int,
+                vol.Required(CONF_RSSI_LIMIT, default=current_rssi_limit): int,
+                vol.Required(CONF_SCAN_INTERVAL, default=current_scan_interval): int,
                 vol.Required(CONF_DEVICE_MODE, default=current_device_mode): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[DEVICE_MODE_AUTO, DEVICE_MODE_SINGLE, DEVICE_MODE_CONTROLLER, DEVICE_MODE_AGENT],
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
-                vol.Optional("add_manual", default=False): bool,
             })
         )
 
-    async def async_step_add_manual(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """수동으로 MAC 주소 추가."""
-        if user_input is not None:
-            # 입력 값의 공백, 세미콜론, 콜론, 대시 등 잘못된 기호를 전부 전처리하여 강건성 확보
-            mac = str(user_input[CONF_MAC] or "").strip().replace(":", "").replace("-", "").replace(";", "").replace(" ", "").lower()
-            if mac:
-                self.new_macs.append(mac)
-                return await self.async_step_name_new_devices()
+    async def async_step_presence_list(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Edit one aggregate presence list."""
+        _, options = _presence_inventory(self.hass)
+        stored_devices = self._config_entry.options.get(
+            "devices", self._config_entry.data.get("devices", {})
+        )
+        for mac, label in stored_devices.items():
+            options.setdefault(mac, label)
 
+        if user_input is not None:
+            targets = user_input.get(CONF_TARGET, [])
+            if not targets:
+                return self.async_show_form(
+                    step_id="presence_list",
+                    data_schema=vol.Schema({
+                        vol.Required(CONF_NAME, default=self._config_entry.options.get(
+                            CONF_NAME, self._config_entry.data.get(CONF_NAME, self._config_entry.title)
+                        )): str,
+                        vol.Required(CONF_TARGET): cv.multi_select(options),
+                        vol.Required(CONF_CONSIDER_HOME, default=self._config_entry.options.get(
+                            CONF_CONSIDER_HOME,
+                            self._config_entry.data.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME),
+                        )): int,
+                    }),
+                    errors={"base": "no_devices_found"},
+                )
+
+            name = str(user_input[CONF_NAME]).strip()
+            if not name:
+                return self.async_show_form(
+                    step_id="presence_list",
+                    data_schema=vol.Schema({
+                        vol.Required(CONF_NAME): str,
+                        vol.Required(CONF_TARGET): cv.multi_select(options),
+                        vol.Required(CONF_CONSIDER_HOME): int,
+                    }),
+                    errors={"base": "invalid_name"},
+                )
+
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_NAME: name,
+                    CONF_TARGET: targets,
+                    "devices": {mac: options.get(mac, mac) for mac in targets},
+                    CONF_CONSIDER_HOME: user_input[CONF_CONSIDER_HOME],
+                },
+            )
+
+        current_targets = self._config_entry.options.get(
+            CONF_TARGET, self._config_entry.data.get(CONF_TARGET, [])
+        )
         return self.async_show_form(
-            step_id="add_manual",
+            step_id="presence_list",
             data_schema=vol.Schema({
-                vol.Required(CONF_MAC): str,
-            })
+                vol.Required(CONF_NAME, default=self._config_entry.options.get(
+                    CONF_NAME, self._config_entry.data.get(CONF_NAME, self._config_entry.title)
+                )): str,
+                vol.Required(CONF_TARGET, default=current_targets): cv.multi_select(options),
+                vol.Required(CONF_CONSIDER_HOME, default=self._config_entry.options.get(
+                    CONF_CONSIDER_HOME,
+                    self._config_entry.data.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME),
+                )): int,
+            }),
         )
-
-    async def async_step_name_new_devices(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """새로 발견된 기기 이름 설정."""
-        if user_input is not None:
-            mac = self.new_macs.pop(0)
-            self.device_map[mac] = user_input[CONF_NAME]
-            if CONF_TARGET in self.temp_options:
-                targets = list(self.temp_options[CONF_TARGET])
-                if mac not in targets:
-                    targets.append(mac)
-                    self.temp_options[CONF_TARGET] = targets
-            if self.new_macs:
-                return await self.async_step_name_new_devices()
-            return self._save_config()
-
-        next_mac = self.new_macs[0]
-        return self.async_show_form(
-            step_id="name_new_devices", 
-            data_schema=vol.Schema({vol.Required(CONF_NAME, default=f"iptime_{next_mac}"): str}), 
-            description_placeholders={"mac_address": next_mac}
-        )
-
-    def _save_config(self) -> FlowResult:
-        """최종 설정 저장 (Data와 Options의 원자적 업데이트로 레이스 컨디션 해결)."""
-        new_data = dict(self._config_entry.data)
-        new_data["devices"] = self.device_map
-        # data와 options를 동시에 원자적(Atomic)으로 업데이트하여 리로드 시점의 레이스 컨디션을 완벽히 예방합니다.
-        self.hass.config_entries.async_update_entry(
-            self._config_entry, 
-            data=new_data, 
-            options=self.temp_options
-        )
-        return self.async_create_entry(title="", data=self.temp_options)

@@ -12,7 +12,12 @@ PLATFORMS: list[Platform] = [
     Platform.NUMBER,
 ]
 
+PRESENCE_LIST_PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR]
+
 CONF_URL = 'iptime_url'
+CONF_ENTRY_TYPE = 'entry_type'
+ENTRY_TYPE_ROUTER = 'router'
+ENTRY_TYPE_PRESENCE_LIST = 'presence_list'
 CONF_ID = 'iptime_id'
 CONF_PASSWORD = 'iptime_pw'
 CONF_TARGET = 'targets'

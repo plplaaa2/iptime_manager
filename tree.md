@@ -1,12 +1,13 @@
 Project layout (updated 2026-09-24).
 The integration is distributed from custom_components/iptime_manager.
-changelog.jsonl and caution.jsonl are local development records excluded from Git.
+changelog.jsonl, changelog_1.jsonl and caution.jsonl are local development records excluded from Git.
 Credential files are intentionally omitted from this listing.
 
 iptime_manager (root)
 |   .gitignore
 |   LICENSE
-|   changelog.jsonl (local)
+|   changelog.jsonl (local, latest)
+|   changelog_1.jsonl (local, older records)
 |   hacs.json
 |   icon.png
 |   README.md
@@ -35,6 +36,7 @@ iptime_manager (root)
         |   device_tracker.py
         |   manifest.json
         |   number.py
+        |   presence.py
         |   select.py
         |   sensor.py
         |   strings.json
@@ -55,4 +57,5 @@ Module responsibilities:
 - sensor.py: diagnostic system sensors, connected EasyMesh Agent count and latest WireGuard peer/handshake sensors.
 - number.py: supported EasyMesh controller thresholds (density RSSI and steering level).
 - button.py: diagnostic reboot button.
-- device_tracker.py: primary presence entities outside Diagnostics.
+- device_tracker.py: removes legacy per-device tracker entities after migration.
+- presence.py: aggregates selected device presence across all configured router coordinators.

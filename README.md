@@ -16,7 +16,7 @@ Home Assistant integration for monitoring and controlling EFM ipTIME routers ove
 - WireGuard server control and latest peer handshake information
 - EasyMesh controller settings for wired backhaul lock, dense deployment, RSSI threshold and steering level
 - EasyMesh router mode and connected Agent count
-- Presence detection for selected devices
+- One aggregate presence sensor for selected devices seen by configured routers
 - Security settings, GeoIP, port forwarding and UPnP
 - Night LED, scheduled reboot and a reboot button in Diagnostics
 
@@ -38,10 +38,12 @@ Copy `custom_components/iptime_manager` into your Home Assistant `config/custom_
 
 1. Open **Settings → Devices & services → Add integration**.
 2. Search for **ipTIME Manager**.
-3. Enter the router address and its administrator credentials.
-4. Select devices to track and adjust the scan interval in the integration options.
+3. Choose **Add a router** or **Add a presence sensor list**.
+4. For a router, enter its address and administrator credentials. For a presence list, select devices from configured routers and name the list.
 
-Use your router's management address, for example `http://192.168.0.1`. Include the port if it uses a custom management port.
+Presence lists can be created when a standalone router or EasyMesh controller is configured. Selected devices are checked across all configured routers, including Agents, and the list sensor turns on when any selected device is detected.
+
+When adding a router, use its management address, for example `http://192.168.0.1`. Include the port if it uses a custom management port.
 
 ## Reading status
 

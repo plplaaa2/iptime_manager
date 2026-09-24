@@ -83,6 +83,7 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             combined_data = {
                 "devices": copy.deepcopy(self.api.result),
                 "web": copy.deepcopy(self.api.web_result),
+                "presence_scan_success": success,
             }
 
             # Summary: Reload entities when EasyMesh mode or density-control entity support changes.

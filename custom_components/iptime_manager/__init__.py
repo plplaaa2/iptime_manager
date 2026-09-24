@@ -1,9 +1,19 @@
 import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from .const import DOMAIN, CONF_URL, CONF_ID, CONF_PASSWORD, PLATFORMS
+from .const import (
+    DOMAIN,
+    CONF_URL,
+    CONF_ID,
+    CONF_PASSWORD,
+    CONF_ENTRY_TYPE,
+    ENTRY_TYPE_PRESENCE_LIST,
+    PRESENCE_LIST_PLATFORMS,
+    PLATFORMS,
+)
 from .api import IPTimeAPI
 from .coordinator import IPTimeDataUpdateCoordinator
+from .presence import IPTimePresenceListCoordinator
 
 # Blocking import 경고 해결을 위한 플랫폼 선행 임포트
 from . import device_tracker, sensor, button, binary_sensor, switch, select, number
@@ -15,6 +25,17 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """통합 구성요소 설정."""
+    hass.data.setdefault(DOMAIN, {})
+
+    if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST:
+        coordinator = IPTimePresenceListCoordinator(hass, entry)
+        await coordinator.async_config_entry_first_refresh()
+        hass.data[DOMAIN][entry.entry_id] = coordinator
+        await hass.config_entries.async_forward_entry_setups(entry, PRESENCE_LIST_PLATFORMS)
+        entry.async_on_unload(entry.add_update_listener(update_listener))
+        _LOGGER.info("ipTIME presence list entity setup completed (%s)", entry.title)
+        return True
+
     _LOGGER.info(f"Starting ipTIME Manager integration (URL: {entry.data[CONF_URL]})")
     api = IPTimeAPI(hass, entry.data[CONF_URL], entry.data[CONF_ID], entry.data[CONF_PASSWORD])
     coordinator = IPTimeDataUpdateCoordinator(hass, api, entry)
@@ -23,7 +44,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
     _LOGGER.info("Initial ipTIME data collection completed")
 
-    hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -39,8 +59,11 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """통합 구성요소 언로드."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    is_presence_list = entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST
+    platforms = PRESENCE_LIST_PLATFORMS if is_presence_list else PLATFORMS
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, platforms)
     if unload_ok:
         coordinator = hass.data[DOMAIN].pop(entry.entry_id)
-        await coordinator.api.async_close()
+        if not is_presence_list:
+            await coordinator.api.async_close()
     return unload_ok

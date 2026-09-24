@@ -4,11 +4,23 @@
       "cannot_connect": "공유기에 연결할 수 없습니다. URL을 확인해 주세요.",
       "invalid_auth": "아이디 또는 비밀번호가 올바르지 않습니다.",
       "no_devices_found": "추적할 기기를 찾을 수 없습니다.",
-      "unknown": "알 수 없는 오류가 발생했습니다."
+      "unknown": "알 수 없는 오류가 발생했습니다.",
+      "invalid_name": "센서 이름을 입력해 주세요."
+    },
+    "abort": {
+      "no_eligible_router": "단일 공유기 또는 EasyMesh 컨트롤러를 먼저 등록해 주세요.",
+      "no_devices_found": "재실 감지 목록에 추가할 기기를 찾을 수 없습니다."
     },
     "step": {
       "user": {
-        "title": "ipTIME Manager 연결",
+        "title": "추가할 항목을 선택하세요",
+        "menu_options": {
+          "router": "공유기 추가",
+          "presence": "재실 센서 목록 추가"
+        }
+      },
+      "router": {
+        "title": "ipTIME 공유기 연결",
         "data": {
           "url": "공유기 URL (예: http://192.168.0.1:8888)",
           "id": "아이디",
@@ -26,10 +38,22 @@
       "name_devices": {
         "title": "기기 이름 설정 ({mac_address})",
         "data": {"name": "이름"}
+      },
+      "presence": {
+        "title": "재실 감지할 기기 선택",
+        "data": {"targets": "재실 감지 대상 기기"}
+      },
+      "presence_name": {
+        "title": "재실 센서 목록 이름 설정",
+        "data": {"name": "재실 센서 이름"}
       }
     }
   },
   "options": {
+    "error": {
+      "invalid_name": "센서 이름을 입력해 주세요.",
+      "no_devices_found": "재실 감지 대상 기기를 하나 이상 선택해 주세요."
+    },
     "step": {
       "init": {
         "title": "설정 변경",
@@ -44,6 +68,14 @@
       "name_new_devices": {
         "title": "새 기기 이름 설정 ({mac_address})",
         "data": {"name": "이름"}
+      },
+      "presence_list": {
+        "title": "재실 센서 목록 변경",
+        "data": {
+          "name": "재실 센서 이름",
+          "targets": "재실 감지 대상 기기",
+          "consider_home": "외출로 판단하기 전 지연 시간 (초)"
+        }
       }
     }
   },
