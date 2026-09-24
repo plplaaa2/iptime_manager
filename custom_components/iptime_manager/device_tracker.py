@@ -63,7 +63,6 @@ class IPTimeHomePresenceTracker(CoordinatorEntity, TrackerEntity):
     """Track one selected client under the shared Home Presence device."""
 
     _attr_source_type = SourceType.ROUTER
-    _attr_icon = "mdi:cellphone"
     _attr_capability_attributes = {
         DeviceTrackerEntityCapabilityAttribute.TRACKING_TYPE: TrackingType.CONNECTION
     }
@@ -79,6 +78,10 @@ class IPTimeHomePresenceTracker(CoordinatorEntity, TrackerEntity):
     @property
     def is_connected(self) -> bool:
         return self._mac in (self.coordinator.data or {}).get("devices", {})
+
+    @property
+    def icon(self) -> str:
+        return "mdi:cellphone" if self.is_connected else "mdi:cellphone-off"
 
     @property
     def state(self) -> str:
