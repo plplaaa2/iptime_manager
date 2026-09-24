@@ -63,6 +63,7 @@ class IPTimeHomePresenceTracker(CoordinatorEntity, TrackerEntity):
     """Track one selected client under the shared Home Presence device."""
 
     _attr_source_type = SourceType.ROUTER
+    _attr_icon = "mdi:cellphone"
     _attr_capability_attributes = {
         DeviceTrackerEntityCapabilityAttribute.TRACKING_TYPE: TrackingType.CONNECTION
     }
