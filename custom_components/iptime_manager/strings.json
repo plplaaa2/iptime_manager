@@ -49,7 +49,8 @@
         "data": {"targets": "Presence devices"}
       },
       "presence_device_name": {
-        "title": "Name the presence sensor for {device_name}",
+        "title": "Name the presence sensor",
+        "description": "Selected device: {device_name}",
         "data": {"name": "Sensor name"}
       }
     }
@@ -84,7 +85,8 @@
         }
       },
       "presence_device_name": {
-        "title": "Name the presence sensor for {device_name}",
+        "title": "Name the presence sensor",
+        "description": "Selected device: {device_name}",
         "data": {"name": "Sensor name"}
       }
     }

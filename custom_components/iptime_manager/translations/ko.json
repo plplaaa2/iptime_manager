@@ -45,7 +45,8 @@
         "data": {"targets": "재실 감지 대상 기기"}
       },
       "presence_device_name": {
-        "title": "{device_name} 재실 센서 이름 설정",
+        "title": "재실 센서 이름 설정",
+        "description": "이름을 설정할 기기: {device_name}",
         "data": {"name": "재실 센서 이름"}
       }
     }
@@ -78,7 +79,8 @@
         }
       },
       "presence_device_name": {
-        "title": "{device_name} 재실 센서 이름 설정",
+        "title": "재실 센서 이름 설정",
+        "description": "이름을 설정할 기기: {device_name}",
         "data": {"name": "재실 센서 이름"}
       }
     }
