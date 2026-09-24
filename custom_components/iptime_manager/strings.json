@@ -34,11 +34,15 @@
       },
       "select_devices": {
         "title": "Select Devices to Track",
-        "data": {"targets": "Choose Presence target"}
+        "data": {
+          "targets": "Choose Presence target"
+        }
       },
       "name_devices": {
         "title": "Set Device Name ({mac_address})",
-        "data": {"name": "Name"}
+        "data": {
+          "name": "Name"
+        }
       },
       "presence": {
         "title": "Select devices to track",
@@ -46,6 +50,7 @@
       },
       "presence_device_name": {
         "title": "Name the presence sensor",
+        "description": "Selected device: {device_name}",
         "data": {"name": "Sensor name"}
       }
     }
@@ -68,7 +73,9 @@
       },
       "name_new_devices": {
         "title": "Set New Device Name ({mac_address})",
-        "data": {"name": "Name"}
+        "data": {
+          "name": "Name"
+        }
       },
       "presence_list": {
         "title": "Change presence sensor list",
@@ -79,6 +86,7 @@
       },
       "presence_device_name": {
         "title": "Name the presence sensor",
+        "description": "Selected device: {device_name}",
         "data": {"name": "Sensor name"}
       }
     }

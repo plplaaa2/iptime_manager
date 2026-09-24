@@ -44,6 +44,11 @@ def _default_presence_name(label: str, mac: str) -> str:
     return label.split(" (", 1)[0].strip() or _format_mac(mac)
 
 
+def _presence_name_field(label: str, mac: str) -> str:
+    """Use the selected router client label for the name field shown in the flow."""
+    return label or _format_mac(mac)
+
+
 def _presence_inventory(hass) -> tuple[bool, dict[str, str]]:
     """Return presence-list eligibility and known clients from all router entries."""
     coordinators = hass.data.get(DOMAIN, {})
@@ -243,14 +248,14 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_presence_device_name(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Name each selected presence sensor individually."""
         mac = self.selected_macs[self.presence_index]
+        field_name = _presence_name_field(self.presence_options.get(mac, ""), mac)
         if user_input is not None:
-            name = str(user_input[CONF_NAME]).strip()
+            name = str(user_input[field_name]).strip()
             if not name:
                 return self.async_show_form(
                     step_id="presence_device_name",
-                    data_schema=vol.Schema({vol.Required(CONF_NAME): str}),
+                    data_schema=vol.Schema({vol.Required(field_name): str}),
                     errors={"base": "invalid_name"},
-                    description_placeholders={"device_name": self.presence_options.get(mac, mac)},
                 )
             self.presence_names[mac] = name
             self.presence_index += 1
@@ -274,8 +279,7 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         default_name = _default_presence_name(self.presence_options.get(mac, mac), mac)
         return self.async_show_form(
             step_id="presence_device_name",
-            data_schema=vol.Schema({vol.Required(CONF_NAME, default=default_name): str}),
-            description_placeholders={"device_name": self.presence_options.get(mac, mac)},
+            data_schema=vol.Schema({vol.Required(field_name, default=default_name): str}),
         )
 
     @staticmethod
@@ -393,14 +397,14 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Edit each selected device's presence sensor name."""
         mac = self._presence_targets[self._presence_index]
+        field_name = _presence_name_field(self._presence_options.get(mac, ""), mac)
         if user_input is not None:
-            name = str(user_input[CONF_NAME]).strip()
+            name = str(user_input[field_name]).strip()
             if not name:
                 return self.async_show_form(
                     step_id="presence_device_name",
-                    data_schema=vol.Schema({vol.Required(CONF_NAME): str}),
+                    data_schema=vol.Schema({vol.Required(field_name): str}),
                     errors={"base": "invalid_name"},
-                    description_placeholders={"device_name": self._presence_options.get(mac, mac)},
                 )
             self._presence_names[mac] = name
             self._presence_index += 1
@@ -425,6 +429,5 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
         )
         return self.async_show_form(
             step_id="presence_device_name",
-            data_schema=vol.Schema({vol.Required(CONF_NAME, default=default_name): str}),
-            description_placeholders={"device_name": self._presence_options.get(mac, mac)},
+            data_schema=vol.Schema({vol.Required(field_name, default=default_name): str}),
         )
