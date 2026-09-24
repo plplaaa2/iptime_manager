@@ -9,7 +9,8 @@
     },
     "abort": {
       "no_eligible_router": "Add a standalone router or EasyMesh controller first.",
-      "no_devices_found": "No devices are available for a presence list."
+      "no_devices_found": "No devices are available for a presence list.",
+      "already_configured": "Home Presence is already configured. Edit its options to change sensors."
     },
     "step": {
       "user": {
@@ -43,8 +44,9 @@
         "title": "Select devices to track",
         "data": {"targets": "Presence devices"}
       },
-      "presence_name": {
-        "title": "Name the presence sensor list",
+      "presence_device_name": {
+        "title": "Name the presence sensor",
+        "description": "Selected device: {device_name}",
         "data": {"name": "Sensor name"}
       }
     }
@@ -72,10 +74,14 @@
       "presence_list": {
         "title": "Change presence sensor list",
         "data": {
-          "name": "Sensor name",
           "targets": "Presence devices",
           "consider_home": "Delay before considering not_home (seconds)"
         }
+      },
+      "presence_device_name": {
+        "title": "Name the presence sensor",
+        "description": "Selected device: {device_name}",
+        "data": {"name": "Sensor name"}
       }
     }
   },
