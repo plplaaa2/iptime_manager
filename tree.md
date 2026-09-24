@@ -53,9 +53,9 @@ iptime_manager (root)
 Module responsibilities:
 - api.py: router API access, elapsed WireGuard handshake conversion, port packet activity and router-mode detection.
 - coordinator.py: collection scheduling, conditional Internet probing, mode-change reload and events.
-- binary_sensor.py: physical Port links, packet Status sensors, Internet Status and EasyMesh agent connectivity entities.
+- binary_sensor.py: physical Port links, packet Status sensors, Internet Status, EasyMesh agent connectivity and per-client Home Presence entities.
 - sensor.py: diagnostic system sensors, connected EasyMesh Agent count and latest WireGuard peer/handshake sensors.
 - number.py: supported EasyMesh controller thresholds (density RSSI and steering level).
 - button.py: diagnostic reboot button.
 - device_tracker.py: removes legacy per-device tracker entities after migration.
-- presence.py: aggregates selected device presence across all configured router coordinators.
+- presence.py: aggregates selected device presence across all configured router coordinators for per-client Home Presence entities.

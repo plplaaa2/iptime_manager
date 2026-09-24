@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import hashlib
 from typing import Any
 
 import voluptuous as vol
@@ -37,6 +36,12 @@ def _format_mac(mac: str) -> str:
     if len(clean) == 12:
         return ":".join(clean[i:i+2] for i in range(0, 12, 2))
     return clean
+
+
+def _default_presence_name(label: str, mac: str) -> str:
+    """Return a readable default sensor name from a router inventory label."""
+    label = label.removeprefix("[임의 MAC / Private MAC] ")
+    return label.split(" (", 1)[0].strip() or _format_mac(mac)
 
 
 def _presence_inventory(hass) -> tuple[bool, dict[str, str]]:
@@ -103,6 +108,9 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self.temp_config: Dict[str, Any] = {}
         self.selected_macs: List[str] = []
+        self.presence_names: dict[str, str] = {}
+        self.presence_options: dict[str, str] = {}
+        self.presence_index = 0
 
     async def async_step_ssdp(self, discovery_info: SsdpServiceInfo) -> FlowResult:
         """SSDP 자동 탐지 처리."""
@@ -202,10 +210,15 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return _presence_inventory(self.hass)
 
     async def async_step_presence(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Select currently known devices for one aggregate presence sensor."""
+        """Select devices that will each get their own presence sensor."""
         eligible, options = self._presence_inventory()
         if not eligible:
             return self.async_abort(reason="no_eligible_router")
+        if any(
+            entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST
+            for entry in self.hass.config_entries.async_entries(DOMAIN)
+        ):
+            return self.async_abort(reason="already_configured")
         if not options:
             return self.async_abort(reason="no_devices_found")
 
@@ -217,43 +230,52 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data_schema=vol.Schema({vol.Required(CONF_TARGET): cv.multi_select(options)}),
                     errors={"base": "no_devices_found"},
                 )
-            return await self.async_step_presence_name()
+            self.presence_options = options
+            self.presence_names = {}
+            self.presence_index = 0
+            return await self.async_step_presence_device_name()
 
         return self.async_show_form(
             step_id="presence",
             data_schema=vol.Schema({vol.Required(CONF_TARGET): cv.multi_select(options)}),
         )
 
-    async def async_step_presence_name(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Name the aggregate presence sensor."""
+    async def async_step_presence_device_name(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Name each selected presence sensor individually."""
+        mac = self.selected_macs[self.presence_index]
         if user_input is not None:
             name = str(user_input[CONF_NAME]).strip()
             if not name:
                 return self.async_show_form(
-                    step_id="presence_name",
+                    step_id="presence_device_name",
                     data_schema=vol.Schema({vol.Required(CONF_NAME): str}),
                     errors={"base": "invalid_name"},
+                    description_placeholders={"device_name": self.presence_options.get(mac, mac)},
                 )
+            self.presence_names[mac] = name
+            self.presence_index += 1
+            if self.presence_index < len(self.selected_macs):
+                return await self.async_step_presence_device_name()
 
-            name_key = hashlib.sha256(name.casefold().encode("utf-8")).hexdigest()[:16]
-            await self.async_set_unique_id(f"presence_list_{name_key}")
+            await self.async_set_unique_id("home_presence")
             self._abort_if_unique_id_configured()
-            _, inventory = self._presence_inventory()
-            selected_names = {mac: inventory.get(mac, _format_mac(mac)) for mac in self.selected_macs}
             return self.async_create_entry(
-                title=name,
+                title="Home Presence",
                 data={
                     CONF_ENTRY_TYPE: ENTRY_TYPE_PRESENCE_LIST,
-                    CONF_NAME: name,
+                    CONF_NAME: "Home Presence",
                     CONF_TARGET: self.selected_macs,
-                    "devices": selected_names,
+                    "devices": {mac: self.presence_options.get(mac, mac) for mac in self.selected_macs},
+                    "device_names": self.presence_names,
                     CONF_CONSIDER_HOME: DEFAULT_CONSIDER_HOME,
                 },
             )
 
+        default_name = _default_presence_name(self.presence_options.get(mac, mac), mac)
         return self.async_show_form(
-            step_id="presence_name",
-            data_schema=vol.Schema({vol.Required(CONF_NAME, default="Home Presence"): str}),
+            step_id="presence_device_name",
+            data_schema=vol.Schema({vol.Required(CONF_NAME, default=default_name): str}),
+            description_placeholders={"device_name": self.presence_options.get(mac, mac)},
         )
 
     @staticmethod
@@ -267,6 +289,11 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         super().__init__()
         self._config_entry = config_entry
+        self._presence_targets: list[str] = []
+        self._presence_names: dict[str, str] = {}
+        self._presence_options: dict[str, str] = {}
+        self._presence_timeout = DEFAULT_CONSIDER_HOME
+        self._presence_index = 0
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """옵션 초기화 단계."""
@@ -313,7 +340,7 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
         )
 
     async def async_step_presence_list(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Edit one aggregate presence list."""
+        """Edit selected devices and timeout for the Home Presence device."""
         _, options = _presence_inventory(self.hass)
         stored_devices = self._config_entry.options.get(
             "devices", self._config_entry.data.get("devices", {})
@@ -327,9 +354,6 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
                 return self.async_show_form(
                     step_id="presence_list",
                     data_schema=vol.Schema({
-                        vol.Required(CONF_NAME, default=self._config_entry.options.get(
-                            CONF_NAME, self._config_entry.data.get(CONF_NAME, self._config_entry.title)
-                        )): str,
                         vol.Required(CONF_TARGET): cv.multi_select(options),
                         vol.Required(CONF_CONSIDER_HOME, default=self._config_entry.options.get(
                             CONF_CONSIDER_HOME,
@@ -338,28 +362,17 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
                     }),
                     errors={"base": "no_devices_found"},
                 )
-
-            name = str(user_input[CONF_NAME]).strip()
-            if not name:
-                return self.async_show_form(
-                    step_id="presence_list",
-                    data_schema=vol.Schema({
-                        vol.Required(CONF_NAME): str,
-                        vol.Required(CONF_TARGET): cv.multi_select(options),
-                        vol.Required(CONF_CONSIDER_HOME): int,
-                    }),
-                    errors={"base": "invalid_name"},
-                )
-
-            return self.async_create_entry(
-                title="",
-                data={
-                    CONF_NAME: name,
-                    CONF_TARGET: targets,
-                    "devices": {mac: options.get(mac, mac) for mac in targets},
-                    CONF_CONSIDER_HOME: user_input[CONF_CONSIDER_HOME],
-                },
+            self._presence_targets = targets
+            self._presence_timeout = user_input[CONF_CONSIDER_HOME]
+            self._presence_options = options
+            old_names = self._config_entry.options.get(
+                "device_names", self._config_entry.data.get("device_names", {})
             )
+            self._presence_names = {
+                mac: old_names[mac] for mac in targets if mac in old_names
+            }
+            self._presence_index = 0
+            return await self.async_step_presence_device_name()
 
         current_targets = self._config_entry.options.get(
             CONF_TARGET, self._config_entry.data.get(CONF_TARGET, [])
@@ -367,13 +380,51 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="presence_list",
             data_schema=vol.Schema({
-                vol.Required(CONF_NAME, default=self._config_entry.options.get(
-                    CONF_NAME, self._config_entry.data.get(CONF_NAME, self._config_entry.title)
-                )): str,
                 vol.Required(CONF_TARGET, default=current_targets): cv.multi_select(options),
                 vol.Required(CONF_CONSIDER_HOME, default=self._config_entry.options.get(
                     CONF_CONSIDER_HOME,
                     self._config_entry.data.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME),
                 )): int,
             }),
+        )
+
+    async def async_step_presence_device_name(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Edit each selected device's presence sensor name."""
+        mac = self._presence_targets[self._presence_index]
+        if user_input is not None:
+            name = str(user_input[CONF_NAME]).strip()
+            if not name:
+                return self.async_show_form(
+                    step_id="presence_device_name",
+                    data_schema=vol.Schema({vol.Required(CONF_NAME): str}),
+                    errors={"base": "invalid_name"},
+                    description_placeholders={"device_name": self._presence_options.get(mac, mac)},
+                )
+            self._presence_names[mac] = name
+            self._presence_index += 1
+            if self._presence_index < len(self._presence_targets):
+                return await self.async_step_presence_device_name()
+
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_TARGET: self._presence_targets,
+                    "devices": {
+                        selected_mac: self._presence_options.get(selected_mac, selected_mac)
+                        for selected_mac in self._presence_targets
+                    },
+                    "device_names": self._presence_names,
+                    CONF_CONSIDER_HOME: self._presence_timeout,
+                },
+            )
+
+        default_name = self._presence_names.get(mac) or _default_presence_name(
+            self._presence_options.get(mac, mac), mac
+        )
+        return self.async_show_form(
+            step_id="presence_device_name",
+            data_schema=vol.Schema({vol.Required(CONF_NAME, default=default_name): str}),
+            description_placeholders={"device_name": self._presence_options.get(mac, mac)},
         )

@@ -9,7 +9,8 @@
     },
     "abort": {
       "no_eligible_router": "단일 공유기 또는 EasyMesh 컨트롤러를 먼저 등록해 주세요.",
-      "no_devices_found": "재실 감지 목록에 추가할 기기를 찾을 수 없습니다."
+      "no_devices_found": "재실 감지 목록에 추가할 기기를 찾을 수 없습니다.",
+      "already_configured": "Home Presence가 이미 등록되어 있습니다. 옵션에서 센서 목록을 변경해 주세요."
     },
     "step": {
       "user": {
@@ -43,8 +44,8 @@
         "title": "재실 감지할 기기 선택",
         "data": {"targets": "재실 감지 대상 기기"}
       },
-      "presence_name": {
-        "title": "재실 센서 목록 이름 설정",
+      "presence_device_name": {
+        "title": "{device_name} 재실 센서 이름 설정",
         "data": {"name": "재실 센서 이름"}
       }
     }
@@ -72,10 +73,13 @@
       "presence_list": {
         "title": "재실 센서 목록 변경",
         "data": {
-          "name": "재실 센서 이름",
           "targets": "재실 감지 대상 기기",
           "consider_home": "외출로 판단하기 전 지연 시간 (초)"
         }
+      },
+      "presence_device_name": {
+        "title": "{device_name} 재실 센서 이름 설정",
+        "data": {"name": "재실 센서 이름"}
       }
     }
   },

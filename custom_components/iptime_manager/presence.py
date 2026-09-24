@@ -59,6 +59,9 @@ class IPTimePresenceListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             for entry in self.hass.config_entries.async_entries(DOMAIN)
             if entry.data.get(CONF_ENTRY_TYPE) != ENTRY_TYPE_PRESENCE_LIST
         }
+        device_names = self.entry.options.get(
+            "device_names", self.entry.data.get("device_names", {})
+        )
         configured_devices = self.entry.options.get("devices", self.entry.data.get("devices", {}))
         now = dt_util.utcnow()
         eligible_source_found = False
@@ -97,7 +100,8 @@ class IPTimePresenceListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     continue
                 self._last_seen[mac] = now
                 self._last_device_info[mac] = {
-                    "name": configured_devices.get(mac)
+                    "name": device_names.get(mac)
+                    or configured_devices.get(mac)
                     or source_names.get(raw_mac)
                     or source_names.get(mac)
                     or info.get("name")
