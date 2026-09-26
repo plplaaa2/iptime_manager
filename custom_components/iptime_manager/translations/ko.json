@@ -53,7 +53,8 @@
   "options": {
     "error": {
       "invalid_name": "센서 이름을 입력해 주세요.",
-      "no_devices_found": "재실 감지 대상 기기를 하나 이상 선택해 주세요."
+      "no_devices_found": "재실 감지 대상 기기를 하나 이상 선택해 주세요.",
+      "no_eligible_router": "새 기기를 등록하려면 단일 공유기 또는 EasyMesh 컨트롤러를 먼저 등록해 주세요."
     },
     "step": {
       "init": {

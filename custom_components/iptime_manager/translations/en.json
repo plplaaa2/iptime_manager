@@ -53,7 +53,8 @@
   "options": {
     "error": {
       "invalid_name": "Enter a name for the sensor.",
-      "no_devices_found": "Select at least one presence device."
+      "no_devices_found": "Select at least one presence device.",
+      "no_eligible_router": "Add a standalone router or EasyMesh controller before registering new devices."
     },
     "step": {
       "init": {

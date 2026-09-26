@@ -39,9 +39,9 @@ Copy `custom_components/iptime_manager` into your Home Assistant `config/custom_
 1. Open **Settings → Devices & services → Add integration**.
 2. Search for **ipTIME Manager**.
 3. Choose **Add a router** or **Add a presence sensor list**.
-4. For a router, enter its address and administrator credentials. For Home Presence, select devices and name each sensor.
+4. For a router, enter its address and administrator credentials. For Home Presence, select devices and name each sensor when available.
 
-Home Presence can be created when a standalone router or EasyMesh controller is configured. Each selected device gets its own named device tracker under the Home Presence device. Devices are checked across all configured routers, including Agents.
+Home Presence can also be created before a router is configured, initially with no trackers. After adding a standalone router or EasyMesh controller, open Home Presence options to select devices and name each sensor. Each selected device gets its own named device tracker under the Home Presence device. Devices are checked across all configured routers, including Agents.
 
 When adding a router, use its management address, for example `http://192.168.0.1`. Include the port if it uses a custom management port.
 

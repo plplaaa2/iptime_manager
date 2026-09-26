@@ -217,15 +217,26 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_presence(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Select devices that will each get their own presence sensor."""
         eligible, options = self._presence_inventory()
-        if not eligible:
-            return self.async_abort(reason="no_eligible_router")
         if any(
             is_presence_list_entry(entry.data)
             for entry in self.hass.config_entries.async_entries(DOMAIN)
         ):
             return self.async_abort(reason="already_configured")
-        if not options:
-            return self.async_abort(reason="no_devices_found")
+
+        if not eligible or not options:
+            await self.async_set_unique_id("home_presence")
+            self._abort_if_unique_id_configured()
+            return self.async_create_entry(
+                title="Home Presence",
+                data={
+                    CONF_ENTRY_TYPE: ENTRY_TYPE_PRESENCE_LIST,
+                    CONF_NAME: "Home Presence",
+                    CONF_TARGET: [],
+                    "devices": {},
+                    "device_names": {},
+                    CONF_CONSIDER_HOME: DEFAULT_CONSIDER_HOME,
+                },
+            )
 
         if user_input is not None:
             self.selected_macs = user_input[CONF_TARGET]
@@ -345,7 +356,7 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_presence_list(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Edit selected devices and timeout for the Home Presence device."""
-        _, options = _presence_inventory(self.hass)
+        eligible, options = _presence_inventory(self.hass)
         stored_devices = self._config_entry.options.get(
             "devices", self._config_entry.data.get("devices", {})
         )
@@ -354,7 +365,10 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
 
         if user_input is not None:
             targets = user_input.get(CONF_TARGET, [])
-            if not targets:
+            current_targets = self._config_entry.options.get(
+                CONF_TARGET, self._config_entry.data.get(CONF_TARGET, [])
+            )
+            if not eligible and any(mac not in current_targets for mac in targets):
                 return self.async_show_form(
                     step_id="presence_list",
                     data_schema=vol.Schema({
@@ -364,7 +378,7 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
                             self._config_entry.data.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME),
                         )): int,
                     }),
-                    errors={"base": "no_devices_found"},
+                    errors={"base": "no_eligible_router"},
                 )
             self._presence_targets = targets
             self._presence_timeout = user_input[CONF_CONSIDER_HOME]
@@ -376,6 +390,16 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
                 mac: old_names[mac] for mac in targets if mac in old_names
             }
             self._presence_index = 0
+            if not targets:
+                return self.async_create_entry(
+                    title="",
+                    data={
+                        CONF_TARGET: [],
+                        "devices": {},
+                        "device_names": {},
+                        CONF_CONSIDER_HOME: self._presence_timeout,
+                    },
+                )
             return await self.async_step_presence_device_name()
 
         current_targets = self._config_entry.options.get(
