@@ -1069,11 +1069,19 @@ class IPTimeAPI:
             session = await self._async_get_session()
             async with session.post(url, json=data, headers=headers) as response:
                 res_json = await response.json()
-                if res_json and res_json.get('result'):
-                    res = self.beta_ui_device_parsing(res_json['result'])
-                    if self._ismesh: res.update(await self.get_mesh_station(rssi_limit=rssi_limit))
+                result = res_json.get("result") if isinstance(res_json, dict) else None
+                if isinstance(result, list):
+                    res = self.beta_ui_device_parsing(result)
+                    if self._ismesh:
+                        res.update(await self.get_mesh_station(rssi_limit=rssi_limit))
                     res["session"] = True
                     return res
+                _LOGGER.debug(
+                    "Beta UI client list response was not a list (HTTP %s, result type: %s, keys: %s)",
+                    response.status,
+                    type(result).__name__,
+                    sorted(res_json) if isinstance(res_json, dict) else type(res_json).__name__,
+                )
         except Exception as err:
             _LOGGER.debug(f"베타 UI 기기 조회 실패: {err}")
         return {"session": False}

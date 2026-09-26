@@ -76,7 +76,9 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                     self.hass.async_create_task(self.hass.config_entries.async_reload(self.entry.entry_id))
 
             if not success:
-                _LOGGER.warning("Failed to collect web data from the router (Auth or communication error)")
+                _LOGGER.warning(
+                    "Failed to collect the router client list (authentication, communication, or unexpected response)"
+                )
             
             # 3. 데이터 통합 (Web + SNMP)
             import copy
