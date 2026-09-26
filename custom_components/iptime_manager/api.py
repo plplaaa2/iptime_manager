@@ -15,6 +15,7 @@ from .const import *
 # 연결될 파일: const.py, coordinator.py
 
 _LOGGER = logging.getLogger(__name__)
+MESH_STATUS_REFRESH_INTERVAL = 15.0
 
 
 # Summary: Normalize the router's EasyMesh mode for role-specific entity and API gates.
@@ -240,6 +241,7 @@ class IPTimeAPI:
         self._ismobile = False
         self._ismesh = False
         self._beta_ui = False
+        self._last_mesh_status_check = 0.0
         self.result: Dict[str, Any] = {}
         self.web_result: Dict[str, Any] = {}
         self._latest_firmware_version: Any = None
@@ -345,10 +347,17 @@ class IPTimeAPI:
                 await self.verify_mobile()
                 if self._ismobile:
                     if not await self.m_login(): return False
-                    await self.m_check_mesh()
                 else:
                     if not await self.login(): return False
-                    await self.check_mesh()
+
+        # Summary: Refresh legacy UI mesh state so disabling EasyMesh promotes an Agent to standalone.
+        # Related files: coordinator.py, presence.py, config_flow.py.
+        if not self._beta_ui and time.monotonic() - self._last_mesh_status_check >= MESH_STATUS_REFRESH_INTERVAL:
+            if self._ismobile:
+                await self.m_check_mesh()
+            else:
+                await self.check_mesh()
+            self._last_mesh_status_check = time.monotonic()
 
         # 2. 데이터 수집
         if self._beta_ui:
@@ -994,17 +1003,25 @@ class IPTimeAPI:
 
     async def check_mesh(self) -> bool:
         text = await self._async_request("GET", f"{self._url}{MESH_URN}")
+        if not text:
+            return self._ismesh
         mode_match = re.search(r'<input\b[^>]*id=["\']mode_none["\'][^>]*>', text or "", flags=re.IGNORECASE | re.DOTALL)
+        if not mode_match:
+            return self._ismesh
         self._ismesh = bool(mode_match and "checked" not in mode_match.group(0).lower())
         return self._ismesh
 
     async def m_check_mesh(self) -> bool:
         text = await self._async_request("GET", f"{self._url}{M_MESH_URN}")
+        if not text:
+            return self._ismesh
         try:
             res_json = loads(text)
-            self._ismesh = "easymesh" in res_json
-            return self._ismesh
-        except Exception: return False
+            if isinstance(res_json, dict):
+                self._ismesh = "easymesh" in res_json
+        except Exception:
+            pass
+        return self._ismesh
 
     async def beta_ui_check_mesh(self) -> bool:
         url = f"{self._url}{BETA_SERVICE_URN}"
@@ -1017,8 +1034,9 @@ class IPTimeAPI:
             session = await self._async_get_session()
             async with session.post(url, json=data, headers=headers) as response:
                 res_json = await response.json()
-                if res_json and res_json.get('result'):
-                    self._ismesh = res_json['result'].get('active', False)
+                result = res_json.get("result") if isinstance(res_json, dict) else None
+                if isinstance(result, dict) and "active" in result:
+                    self._ismesh = bool(result["active"])
         except Exception: pass
         return self._ismesh
 

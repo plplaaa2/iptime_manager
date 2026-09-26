@@ -80,9 +80,14 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             
             # 3. 데이터 통합 (Web + SNMP)
             import copy
+            # Summary: Publish live EasyMesh state from legacy clients for topology-aware presence detection.
+            # Related files: api.py, presence.py, config_flow.py.
+            web_data = copy.deepcopy(self.api.web_result)
+            if not self.api._beta_ui:
+                web_data["easymesh_active"] = bool(self.api._ismesh)
             combined_data = {
                 "devices": copy.deepcopy(self.api.result),
-                "web": copy.deepcopy(self.api.web_result),
+                "web": web_data,
                 "presence_scan_success": success,
             }
 
