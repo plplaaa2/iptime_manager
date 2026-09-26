@@ -55,7 +55,7 @@ def _presence_inventory(hass) -> tuple[bool, dict[str, str]]:
     entries = {
         entry.entry_id: entry
         for entry in hass.config_entries.async_entries(DOMAIN)
-        if entry.data.get(CONF_ENTRY_TYPE) != ENTRY_TYPE_PRESENCE_LIST
+        if not is_presence_list_entry(entry.data)
     }
     eligible = False
     options: dict[str, str] = {}
@@ -220,7 +220,7 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not eligible:
             return self.async_abort(reason="no_eligible_router")
         if any(
-            entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST
+            is_presence_list_entry(entry.data)
             for entry in self.hass.config_entries.async_entries(DOMAIN)
         ):
             return self.async_abort(reason="already_configured")
@@ -301,7 +301,7 @@ class IPTimeOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """옵션 초기화 단계."""
-        if self._config_entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST:
+        if is_presence_list_entry(self._config_entry.data):
             return await self.async_step_presence_list(user_input)
 
         if user_input is not None:

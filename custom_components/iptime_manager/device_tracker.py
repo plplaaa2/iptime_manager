@@ -13,7 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_ENTRY_TYPE, CONF_TARGET, DOMAIN, ENTRY_TYPE_PRESENCE_LIST
+from .const import CONF_TARGET, DOMAIN, is_presence_list_entry
 
 # Summary: Expose each selected Home Presence client as a Home Assistant device_tracker.
 # Related files: __init__.py, presence.py, config_flow.py.
@@ -26,7 +26,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     from homeassistant.helpers import entity_registry as er
 
     registry = er.async_get(hass)
-    if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST:
+    if is_presence_list_entry(entry.data):
         targets = entry.options.get(CONF_TARGET, entry.data.get(CONF_TARGET, []))
         current_unique_ids = {
             f"{entry.entry_id}_presence_{str(mac).replace(':', '').replace('-', '').lower()}"

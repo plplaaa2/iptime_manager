@@ -6,10 +6,9 @@ from .const import (
     CONF_URL,
     CONF_ID,
     CONF_PASSWORD,
-    CONF_ENTRY_TYPE,
-    ENTRY_TYPE_PRESENCE_LIST,
     PRESENCE_LIST_PLATFORMS,
     PLATFORMS,
+    is_presence_list_entry,
 )
 from .api import IPTimeAPI
 from .coordinator import IPTimeDataUpdateCoordinator
@@ -27,7 +26,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """통합 구성요소 설정."""
     hass.data.setdefault(DOMAIN, {})
 
-    if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST:
+    if is_presence_list_entry(entry.data):
         coordinator = IPTimePresenceListCoordinator(hass, entry)
         await coordinator.async_config_entry_first_refresh()
         hass.data[DOMAIN][entry.entry_id] = coordinator
@@ -59,7 +58,7 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """통합 구성요소 언로드."""
-    is_presence_list = entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST
+    is_presence_list = is_presence_list_entry(entry.data)
     platforms = PRESENCE_LIST_PLATFORMS if is_presence_list else PLATFORMS
     unload_ok = await hass.config_entries.async_unload_platforms(entry, platforms)
     if unload_ok:

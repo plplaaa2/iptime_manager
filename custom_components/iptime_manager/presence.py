@@ -13,14 +13,13 @@ from .api import get_easymesh_role
 from .const import (
     CONF_CONSIDER_HOME,
     CONF_DEVICE_MODE,
-    CONF_ENTRY_TYPE,
     CONF_TARGET,
     DEFAULT_CONSIDER_HOME,
     DEFAULT_DEVICE_MODE,
     DEVICE_MODE_CONTROLLER,
     DEVICE_MODE_SINGLE,
     DOMAIN,
-    ENTRY_TYPE_PRESENCE_LIST,
+    is_presence_list_entry,
 )
 
 # Summary: Aggregate selected MAC presence across every configured router coordinator.
@@ -57,7 +56,7 @@ class IPTimePresenceListCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         entries = {
             entry.entry_id: entry
             for entry in self.hass.config_entries.async_entries(DOMAIN)
-            if entry.data.get(CONF_ENTRY_TYPE) != ENTRY_TYPE_PRESENCE_LIST
+            if not is_presence_list_entry(entry.data)
         }
         device_names = self.entry.options.get(
             "device_names", self.entry.data.get("device_names", {})
