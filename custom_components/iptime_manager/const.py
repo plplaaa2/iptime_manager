@@ -12,11 +12,29 @@ PLATFORMS: list[Platform] = [
     Platform.NUMBER,
 ]
 
+PRESENCE_LIST_PLATFORMS: list[Platform] = [Platform.DEVICE_TRACKER]
+
 CONF_URL = 'iptime_url'
+CONF_ENTRY_TYPE = 'entry_type'
+ENTRY_TYPE_ROUTER = 'router'
+ENTRY_TYPE_PRESENCE_LIST = 'presence_list'
 CONF_ID = 'iptime_id'
 CONF_PASSWORD = 'iptime_pw'
 CONF_TARGET = 'targets'
 CONF_NAME = 'name'
+
+
+def is_presence_list_entry(entry_data: dict[str, object]) -> bool:
+    """Recognize current and older Home Presence config entries."""
+    if entry_data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_PRESENCE_LIST:
+        return True
+    return CONF_URL not in entry_data and (
+        CONF_TARGET in entry_data
+        or entry_data.get(CONF_NAME) == "Home Presence"
+        or "device_names" in entry_data
+    )
+
+
 CONF_MAC = 'mac'
 DEFAULT_INTERVAL = 5
 

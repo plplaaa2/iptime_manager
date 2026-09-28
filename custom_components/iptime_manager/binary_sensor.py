@@ -14,7 +14,10 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
-from .const import DOMAIN, CONF_URL
+from .const import (
+    DOMAIN,
+    CONF_URL,
+)
 from .api import get_easymesh_agents, is_easymesh_agent_connected, is_easymesh_controller
 
 _LOGGER = logging.getLogger(__name__)

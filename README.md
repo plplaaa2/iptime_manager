@@ -3,7 +3,7 @@
 [🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.0.8-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.0.9-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 Home Assistant integration for monitoring and controlling EFM ipTIME routers over your local network. No SNMP setup is required.
@@ -16,7 +16,7 @@ Home Assistant integration for monitoring and controlling EFM ipTIME routers ove
 - WireGuard server control and latest peer handshake information
 - EasyMesh controller settings for wired backhaul lock, dense deployment, RSSI threshold and steering level
 - EasyMesh router mode and connected Agent count
-- Presence detection for selected devices
+- Individual device trackers for selected devices, grouped under one Home Presence device
 - Security settings, GeoIP, port forwarding and UPnP
 - Night LED, scheduled reboot and a reboot button in Diagnostics
 
@@ -38,10 +38,12 @@ Copy `custom_components/iptime_manager` into your Home Assistant `config/custom_
 
 1. Open **Settings → Devices & services → Add integration**.
 2. Search for **ipTIME Manager**.
-3. Enter the router address and its administrator credentials.
-4. Select devices to track and adjust the scan interval in the integration options.
+3. Choose **Add a router** or **Add a presence sensor list**.
+4. For a router, enter its address and administrator credentials. For Home Presence, select devices and name each sensor when available.
 
-Use your router's management address, for example `http://192.168.0.1`. Include the port if it uses a custom management port.
+Home Presence can also be created before a router is configured, initially with no trackers. After adding a standalone router or EasyMesh controller, open Home Presence options to select devices and name each sensor. Each selected device gets its own named device tracker under the Home Presence device. Devices are checked across all configured routers, including Agents.
+
+When adding a router, use its management address, for example `http://192.168.0.1`. Include the port if it uses a custom management port.
 
 ## Reading status
 

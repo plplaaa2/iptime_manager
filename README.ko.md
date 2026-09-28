@@ -1,7 +1,7 @@
 # Home Assistant용 ipTIME Manager
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.0.8-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.0.9-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 EFM ipTIME 공유기를 로컬 네트워크에서 모니터링하고 제어하는 Home Assistant 통합 구성요소입니다. SNMP 설정 없이 사용할 수 있습니다.
@@ -14,7 +14,7 @@ EFM ipTIME 공유기를 로컬 네트워크에서 모니터링하고 제어하�
 - WireGuard 서버 제어와 최근 접속 피어 정보
 - EasyMesh 컨트롤러의 유선 백홀 고정, 메시 밀집 구성, RSSI 기준 및 스티어링 설정
 - EasyMesh 공유기 모드와 연결된 Agent 수
-- 선택한 기기의 재실 감지
+- 선택한 기기마다 재실 추적기(device_tracker)를 만들고 `Home Presence` 기기 아래에 모아 표시
 - 보안 설정, GeoIP, 포트포워딩 및 UPnP
 - 나이트 LED, 자동 재부팅과 진단 항목의 재부팅 버튼
 
@@ -36,10 +36,12 @@ EFM ipTIME 공유기를 로컬 네트워크에서 모니터링하고 제어하�
 
 1. **설정 → 기기 및 서비스 → 통합 구성요소 추가**를 선택합니다.
 2. **ipTIME Manager**를 검색합니다.
-3. 공유기 주소와 관리자 계정을 입력합니다.
-4. 통합 구성요소 옵션에서 추적할 기기와 감지 간격을 설정합니다.
+3. `공유기 추가` 또는 `재실 센서 목록 추가`를 선택합니다.
+4. 공유기는 주소와 관리자 계정을 입력합니다. 공유기가 아직 없다면 먼저 빈 재실 센서 목록을 만들고, 공유기를 등록한 뒤 옵션에서 기기를 선택해 센서 이름을 설정할 수 있습니다.
 
-공유기 관리 주소(예: `http://192.168.0.1`)를 사용하세요. 별도 관리 포트를 사용한다면 주소에 포트도 포함합니다.
+새 기기를 재실 센서로 등록하려면 단일 공유기 또는 EasyMesh 컨트롤러가 필요합니다. Home Presence 목록 자체는 공유기 없이 먼저 만들 수 있으며, 공유기 등록 후 옵션에서 감지할 기기를 추가하면 됩니다. 선택한 기기는 Agent를 포함해 등록된 모든 공유기에서 감지하며, 기기별 추적기는 해당 기기가 감지되면 `home`, 감지되지 않으면 `not_home` 상태가 됩니다. 추적기들은 `Home Presence` 기기 아래에 표시됩니다.
+
+공유기 추가 시 공유기 관리 주소(예: `http://192.168.0.1`)를 사용하세요. 별도 관리 포트를 사용한다면 주소에 포트도 포함합니다.
 
 ## 상태 확인
 

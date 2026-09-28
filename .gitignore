@@ -13,6 +13,7 @@ ENV/
 # 개발 내부 관리 파일 제외 (깃허브 업로드 방지)
 **/caution.jsonl
 **/changelog.jsonl
+**/changelog_*.jsonl
 **/web_api.md
 main.dart.js
 IPTIME-ROUTER-MIB.txt

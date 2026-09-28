@@ -1,9 +1,22 @@
 # Changelog
 
+## [1.0.9] - 2026-09-28
+
+### Changed
+
+- Integrate presence tracking across standalone and EasyMesh routers, with individually named device trackers under one Home Presence device.
+- Allow creating an empty Home Presence list and adding devices later from its options.
+
+### Fixed
+
+- Support existing Home Presence entries and preserve tracking when EasyMesh changes to standalone mode.
+
 ## [1.0.8] - 2026-09-24
 
 ### Changed
 
+- Added named aggregate presence sensor lists across configured routers; standalone routers and EasyMesh controllers enable list creation, while Agent observations also contribute to presence.
+- Removed per-device device_tracker entities and clean up their registry entries when router entries load.
 - Added EasyMesh controller controls for wired backhaul lock, dense configuration, station RSSI limit and steering level.
 - Restricted controller controls to active controllers and hid GeoIP, WireGuard and DNS entities in Agent mode.
 - Read router uptime from `system/info.uptime` instead of WAN/LAN connection duration.
@@ -27,6 +40,7 @@
 - Improved HACS compatibility and translations.
 
 - **Migration note:** Existing WAN/LAN Status sensors are renamed to WAN/LAN Port, and Internet Connectivity to Internet Status. Review dashboard and automation references after updating; the new WAN/LAN Status sensors report traffic activity instead of physical link state.
+- **Presence migration note:** Existing per-device device_tracker entities are removed. Create a presence sensor list and update automations that referenced the old trackers.
 
 ## [1.0.7] - 2026-08-05
 

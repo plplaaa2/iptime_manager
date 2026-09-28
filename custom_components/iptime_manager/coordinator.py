@@ -76,13 +76,21 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                     self.hass.async_create_task(self.hass.config_entries.async_reload(self.entry.entry_id))
 
             if not success:
-                _LOGGER.warning("Failed to collect web data from the router (Auth or communication error)")
+                _LOGGER.warning(
+                    "Failed to collect the router client list (authentication, communication, or unexpected response)"
+                )
             
             # 3. 데이터 통합 (Web + SNMP)
             import copy
+            # Summary: Publish live EasyMesh state from legacy clients for topology-aware presence detection.
+            # Related files: api.py, presence.py, config_flow.py.
+            web_data = copy.deepcopy(self.api.web_result)
+            if not self.api._beta_ui:
+                web_data["easymesh_active"] = bool(self.api._ismesh)
             combined_data = {
                 "devices": copy.deepcopy(self.api.result),
-                "web": copy.deepcopy(self.api.web_result),
+                "web": web_data,
+                "presence_scan_success": success,
             }
 
             # Summary: Reload entities when EasyMesh mode or density-control entity support changes.

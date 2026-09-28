@@ -15,6 +15,7 @@ from .const import *
 # 연결될 파일: const.py, coordinator.py
 
 _LOGGER = logging.getLogger(__name__)
+MESH_STATUS_REFRESH_INTERVAL = 15.0
 
 
 # Summary: Normalize the router's EasyMesh mode for role-specific entity and API gates.
@@ -240,6 +241,7 @@ class IPTimeAPI:
         self._ismobile = False
         self._ismesh = False
         self._beta_ui = False
+        self._last_mesh_status_check = 0.0
         self.result: Dict[str, Any] = {}
         self.web_result: Dict[str, Any] = {}
         self._latest_firmware_version: Any = None
@@ -345,10 +347,17 @@ class IPTimeAPI:
                 await self.verify_mobile()
                 if self._ismobile:
                     if not await self.m_login(): return False
-                    await self.m_check_mesh()
                 else:
                     if not await self.login(): return False
-                    await self.check_mesh()
+
+        # Summary: Refresh legacy UI mesh state so disabling EasyMesh promotes an Agent to standalone.
+        # Related files: coordinator.py, presence.py, config_flow.py.
+        if not self._beta_ui and time.monotonic() - self._last_mesh_status_check >= MESH_STATUS_REFRESH_INTERVAL:
+            if self._ismobile:
+                await self.m_check_mesh()
+            else:
+                await self.check_mesh()
+            self._last_mesh_status_check = time.monotonic()
 
         # 2. 데이터 수집
         if self._beta_ui:
@@ -885,8 +894,8 @@ class IPTimeAPI:
                         self.efm_session_id = ids[0]
                         _LOGGER.debug(f"로그인 성공 (URL: {urn}, Session: {self.efm_session_id[:4]}****)")
                         return True
-            except Exception as err:
-                _LOGGER.debug(f"로그인 시도 실패 ({urn}): {err}")
+            except Exception:
+                _LOGGER.debug("로그인 요청 실패 (경로: %s)", urn)
         return False
 
     async def m_login(self) -> bool:
@@ -941,8 +950,6 @@ class IPTimeAPI:
             session = await self._async_get_session()
             async with session.post(url, json=data, headers=headers) as response:
                 res_json = await response.json()
-                _LOGGER.debug(f"베타 UI 로그인 응답: {res_json}")
-                
                 if res_json and res_json.get('result') == "done":
                     # 쿠키 추출 수동화 및 자동화 병합 최종 강화 (연결될 파일: select.py, switch.py)
                     session_id = None
@@ -969,9 +976,9 @@ class IPTimeAPI:
                     
                     return True
                 else:
-                    _LOGGER.warning(f"베타 UI 로그인 거부됨: {res_json}")
-        except Exception as err:
-            _LOGGER.warning(f"베타 UI 로그인 예외 발생: {err}")
+                    _LOGGER.warning("베타 UI 로그인 거부됨")
+        except Exception:
+            _LOGGER.warning("베타 UI 로그인 요청 중 오류 발생")
         return False
 
     async def verify_beta_ui(self) -> bool:
@@ -994,17 +1001,25 @@ class IPTimeAPI:
 
     async def check_mesh(self) -> bool:
         text = await self._async_request("GET", f"{self._url}{MESH_URN}")
+        if not text:
+            return self._ismesh
         mode_match = re.search(r'<input\b[^>]*id=["\']mode_none["\'][^>]*>', text or "", flags=re.IGNORECASE | re.DOTALL)
+        if not mode_match:
+            return self._ismesh
         self._ismesh = bool(mode_match and "checked" not in mode_match.group(0).lower())
         return self._ismesh
 
     async def m_check_mesh(self) -> bool:
         text = await self._async_request("GET", f"{self._url}{M_MESH_URN}")
+        if not text:
+            return self._ismesh
         try:
             res_json = loads(text)
-            self._ismesh = "easymesh" in res_json
-            return self._ismesh
-        except Exception: return False
+            if isinstance(res_json, dict):
+                self._ismesh = "easymesh" in res_json
+        except Exception:
+            pass
+        return self._ismesh
 
     async def beta_ui_check_mesh(self) -> bool:
         url = f"{self._url}{BETA_SERVICE_URN}"
@@ -1017,8 +1032,9 @@ class IPTimeAPI:
             session = await self._async_get_session()
             async with session.post(url, json=data, headers=headers) as response:
                 res_json = await response.json()
-                if res_json and res_json.get('result'):
-                    self._ismesh = res_json['result'].get('active', False)
+                result = res_json.get("result") if isinstance(res_json, dict) else None
+                if isinstance(result, dict) and "active" in result:
+                    self._ismesh = bool(result["active"])
         except Exception: pass
         return self._ismesh
 
@@ -1051,11 +1067,19 @@ class IPTimeAPI:
             session = await self._async_get_session()
             async with session.post(url, json=data, headers=headers) as response:
                 res_json = await response.json()
-                if res_json and res_json.get('result'):
-                    res = self.beta_ui_device_parsing(res_json['result'])
-                    if self._ismesh: res.update(await self.get_mesh_station(rssi_limit=rssi_limit))
+                result = res_json.get("result") if isinstance(res_json, dict) else None
+                if isinstance(result, list):
+                    res = self.beta_ui_device_parsing(result)
+                    if self._ismesh:
+                        res.update(await self.get_mesh_station(rssi_limit=rssi_limit))
                     res["session"] = True
                     return res
+                _LOGGER.debug(
+                    "Beta UI client list response was not a list (HTTP %s, result type: %s, keys: %s)",
+                    response.status,
+                    type(result).__name__,
+                    sorted(res_json) if isinstance(res_json, dict) else type(res_json).__name__,
+                )
         except Exception as err:
             _LOGGER.debug(f"베타 UI 기기 조회 실패: {err}")
         return {"session": False}
