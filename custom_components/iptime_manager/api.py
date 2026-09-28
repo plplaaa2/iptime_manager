@@ -894,8 +894,8 @@ class IPTimeAPI:
                         self.efm_session_id = ids[0]
                         _LOGGER.debug(f"로그인 성공 (URL: {urn}, Session: {self.efm_session_id[:4]}****)")
                         return True
-            except Exception as err:
-                _LOGGER.debug(f"로그인 시도 실패 ({urn}): {err}")
+            except Exception:
+                _LOGGER.debug("로그인 요청 실패 (경로: %s)", urn)
         return False
 
     async def m_login(self) -> bool:
@@ -950,8 +950,6 @@ class IPTimeAPI:
             session = await self._async_get_session()
             async with session.post(url, json=data, headers=headers) as response:
                 res_json = await response.json()
-                _LOGGER.debug(f"베타 UI 로그인 응답: {res_json}")
-                
                 if res_json and res_json.get('result') == "done":
                     # 쿠키 추출 수동화 및 자동화 병합 최종 강화 (연결될 파일: select.py, switch.py)
                     session_id = None
@@ -978,9 +976,9 @@ class IPTimeAPI:
                     
                     return True
                 else:
-                    _LOGGER.warning(f"베타 UI 로그인 거부됨: {res_json}")
-        except Exception as err:
-            _LOGGER.warning(f"베타 UI 로그인 예외 발생: {err}")
+                    _LOGGER.warning("베타 UI 로그인 거부됨")
+        except Exception:
+            _LOGGER.warning("베타 UI 로그인 요청 중 오류 발생")
         return False
 
     async def verify_beta_ui(self) -> bool:
