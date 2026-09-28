@@ -4,15 +4,12 @@
 
 ### Changed
 
-- Allow an empty Home Presence list to be created before a router is configured, then add and name devices from its options after a standalone router or EasyMesh controller is available.
-- Keep Home Presence device trackers working when EasyMesh is disabled and a former Agent becomes a standalone router; refresh legacy UI mesh state periodically.
-- Register each selected client as its own named device tracker under the shared Home Presence device, with `cellphone` and `cellphone-off` icons for home and not_home states.
+- Integrate presence tracking across standalone and EasyMesh routers, with individually named device trackers under one Home Presence device.
+- Allow creating an empty Home Presence list and adding devices later from its options.
 
 ### Fixed
 
-- Recognize older Home Presence entries without an `entry_type` field, preventing setup from treating them as routers and raising a missing `iptime_url` error.
-- Treat a valid empty Beta UI client list as a successful scan instead of an authentication or communication failure.
-- Clarify the coordinator warning so it identifies failures in router client-list collection.
+- Support existing Home Presence entries and preserve tracking when EasyMesh changes to standalone mode.
 
 ## [1.0.8] - 2026-09-24
 
