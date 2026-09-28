@@ -4,7 +4,6 @@
 
 ### Changed
 
-- Show the selected router client directly above the presence sensor name field, while keeping the configured sensor name as its input value.
 - Allow an empty Home Presence list to be created before a router is configured, then add and name devices from its options after a standalone router or EasyMesh controller is available.
 - Keep Home Presence device trackers working when EasyMesh is disabled and a former Agent becomes a standalone router; refresh legacy UI mesh state periodically.
 - Register each selected client as its own named device tracker under the shared Home Presence device, with `cellphone` and `cellphone-off` icons for home and not_home states.
