@@ -1,12 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [1.1.0] - 2026-10-03
+
+### Added
 
 - Add port forwarding list, add, update and delete actions with optional partial updates and rule renaming.
 - Validate LAN targets and overlapping user/UPnP ports, protect fixed rules and verify changes through readback.
-
 - Add response-capable DHCP reservation list, add, update and delete actions for beta UI routers.
 - Validate duplicate reservation and connected-device IPs, LAN addresses and existing targets; serialize changes per router and verify them by reading back reservations.
+- Provide English and Korean action fields and usage examples. These actions require beta UI support; live Home Assistant and router validation is pending.
 
 ## [1.0.9] - 2026-09-28
 

@@ -1,7 +1,7 @@
 # Home Assistant용 ipTIME Manager
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.0.9-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.1.0-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 EFM ipTIME 공유기를 로컬 네트워크에서 모니터링하고 제어하는 Home Assistant 통합 구성요소입니다. SNMP 설정 없이 사용할 수 있습니다.
@@ -16,6 +16,7 @@ EFM ipTIME 공유기를 로컬 네트워크에서 모니터링하고 제어하�
 - EasyMesh 공유기 모드와 연결된 Agent 수
 - 선택한 기기마다 재실 추적기(device_tracker)를 만들고 `Home Presence` 기기 아래에 모아 표시
 - 보안 설정, GeoIP, 포트포워딩 및 UPnP
+- Beta UI 공유기의 DHCP 수동 IP 할당·포트 포워딩 규칙 조회·추가·수정·삭제 액션
 - 나이트 LED, 자동 재부팅과 진단 항목의 재부팅 버튼
 
 지원 기능은 공유기 모델과 펌웨어에 따라 다릅니다.
