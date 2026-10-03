@@ -14,6 +14,7 @@ iptime_manager (root)
 |   README.ko.md
 |   tree.md
 |   tests/test_dhcp.py (offline DHCP contract and conflict tests)
+|   tests/test_port_forward.py (offline port forwarding contract and conflict tests)
 |
 +---.github
 |   \---workflows
@@ -38,6 +39,7 @@ iptime_manager (root)
         |   dhcp.py
         |   manifest.json
         |   number.py
+        |   port_forward.py
         |   presence.py
         |   select.py
         |   sensor.py
@@ -56,7 +58,8 @@ iptime_manager (root)
 
 Module responsibilities:
 - dhcp.py: DHCP reservation RPCs, conflict validation, per-router locking and readback verification.
-- services.py: router selection and response-capable DHCP action registration.
+- port_forward.py: user port forwarding RPCs, UPnP conflict checks, partial updates and readback verification.
+- services.py: router selection and response-capable DHCP and port forwarding action registration.
 - api.py: router API access, elapsed WireGuard handshake conversion, port packet activity and router-mode detection.
 - coordinator.py: collection scheduling, conditional Internet probing, mode-change reload and events.
 - binary_sensor.py: physical Port links, packet Status sensors, Internet Status and EasyMesh agent connectivity entities.

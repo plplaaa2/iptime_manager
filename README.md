@@ -47,6 +47,40 @@ When adding a router, use its management address, for example `http://192.168.0.
 
 ## Reading status
 
+### Port forwarding actions
+
+Beta UI routers provide `iptime_manager.get_port_forward_rules`, `add_port_forward_rule`,
+`update_port_forward_rule` and `delete_port_forward_rule`. Select the router with `config_entry_id`.
+Get returns user `rules` and `upnp_rules`; use `response_variable` to receive the result.
+Mutation actions optionally return the updated user rules.
+
+Active additions require `name`, `protocol` (`tcp`/`udp`/`tcpudp`), `internal_ip`,
+`external_port_start` and `internal_port_start`. Optional end ports define ranges of equal lengths.
+A newly supplied start without an end selects a single port. Updates identify the existing rule by `name`,
+preserve omitted fields and optionally rename it with `new_name`. Deletes require the existing `name`.
+The router API has no separate rule description field.
+
+```yaml
+- action: iptime_manager.add_port_forward_rule
+  data:
+    config_entry_id: YOUR_ROUTER_CONFIG_ENTRY_ID
+    name: Web server
+    protocol: tcp
+    internal_ip: 192.168.0.50
+    external_port_start: 8080
+    internal_port_start: 80
+```
+
+Actions validate names, LAN addresses and overlapping active user/UPnP ports for the same protocol,
+serialize action changes per router and verify them by reading back the rules.
+UPnP rules are only queried for responses and conflicts; fixed router rules cannot be edited or deleted.
+GRE mapping edits are unsupported. Concurrent router UI or UPnP changes cannot be fully protected.
+
+Add defaults to active. To create an inactive rule or disable an existing rule, provide only `name` and
+`active: false`; mapping fields cannot accompany an inactive request, matching the router UI contract.
+Use `active: true` to enable a rule, supplying its mapping if it has none. The existing switch controls
+the global port forwarding feature independently of individual rule actions.
+
 ### DHCP reservation actions
 
 Routers supporting the beta UI provide `iptime_manager.get_dhcp_reservations`,

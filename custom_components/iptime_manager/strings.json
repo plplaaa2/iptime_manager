@@ -1,5 +1,117 @@
 {
   "services": {
+    "get_port_forward_rules": {
+      "name": "Get port forwarding rules",
+      "description": "Manage beta UI port forwarding. Get returns user and UPnP rules.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Router",
+          "description": "Select a loaded router configuration."
+        }
+      }
+    },
+    "add_port_forward_rule": {
+      "name": "Add port forwarding rule",
+      "description": "Manage beta UI port forwarding. Get returns user and UPnP rules.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Router",
+          "description": "Select a loaded router configuration."
+        },
+        "name": {
+          "name": "Rule name",
+          "description": "Name to add, or existing rule name to update/delete."
+        },
+        "active": {
+          "name": "Active",
+          "description": "Add defaults to active. Omit mapping fields when disabling."
+        },
+        "protocol": {
+          "name": "Protocol",
+          "description": "TCP, UDP or TCP+UDP. Omit on update to preserve."
+        },
+        "internal_ip": {
+          "name": "Internal IP",
+          "description": "Required for active additions. Omit on update to preserve."
+        },
+        "external_port_start": {
+          "name": "External start port",
+          "description": "Required for active additions. Range: 1–65535."
+        },
+        "external_port_end": {
+          "name": "External end port",
+          "description": "Optional range end; a new start without an end means a single port."
+        },
+        "internal_port_start": {
+          "name": "Internal start port",
+          "description": "Required for active additions. Range: 1–65535."
+        },
+        "internal_port_end": {
+          "name": "Internal end port",
+          "description": "Internal and external ranges must contain the same number of ports."
+        }
+      }
+    },
+    "update_port_forward_rule": {
+      "name": "Update port forwarding rule",
+      "description": "Manage beta UI port forwarding. Get returns user and UPnP rules.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Router",
+          "description": "Select a loaded router configuration."
+        },
+        "name": {
+          "name": "Rule name",
+          "description": "Name to add, or existing rule name to update/delete."
+        },
+        "active": {
+          "name": "Active",
+          "description": "Add defaults to active. Omit mapping fields when disabling."
+        },
+        "protocol": {
+          "name": "Protocol",
+          "description": "TCP, UDP or TCP+UDP. Omit on update to preserve."
+        },
+        "internal_ip": {
+          "name": "Internal IP",
+          "description": "Required for active additions. Omit on update to preserve."
+        },
+        "external_port_start": {
+          "name": "External start port",
+          "description": "Required for active additions. Range: 1–65535."
+        },
+        "external_port_end": {
+          "name": "External end port",
+          "description": "Optional range end; a new start without an end means a single port."
+        },
+        "internal_port_start": {
+          "name": "Internal start port",
+          "description": "Required for active additions. Range: 1–65535."
+        },
+        "internal_port_end": {
+          "name": "Internal end port",
+          "description": "Internal and external ranges must contain the same number of ports."
+        },
+        "new_name": {
+          "name": "New rule name",
+          "description": "Optional replacement rule name."
+        }
+      }
+    },
+    "delete_port_forward_rule": {
+      "name": "Delete port forwarding rule",
+      "description": "Manage beta UI port forwarding. Get returns user and UPnP rules.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Router",
+          "description": "Select a loaded router configuration."
+        },
+        "name": {
+          "name": "Rule name",
+          "description": "Name to add, or existing rule name to update/delete."
+        }
+      }
+    },
     "get_dhcp_reservations": {
       "name": "Get DHCP reservations",
       "description": "Manage DHCP reservations on beta UI routers. Get returns the reservation list as response data.",

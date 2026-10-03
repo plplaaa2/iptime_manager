@@ -11,6 +11,7 @@ from json import loads
 from datetime import datetime, timedelta, timezone
 from .const import *
 from .dhcp import DHCPReservations
+from .port_forward import PortForwardRules
 
 # 요약: ipTIME 공유기와의 통신(Web CGI) 담당 API 클래스
 # 연결될 파일: const.py, coordinator.py
@@ -269,6 +270,9 @@ class IPTimeAPI:
         # Summary: Keep a per-router reservation lock across action calls.
         # Related files: dhcp.py, services.py.
         self.dhcp = DHCPReservations(self)
+        # Summary: Serialize port forwarding action changes per router.
+        # Related files: port_forward.py, services.py.
+        self.port_forward = PortForwardRules(self)
 
     async def _async_get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:

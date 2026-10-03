@@ -45,6 +45,39 @@ EFM ipTIME 공유기를 로컬 네트워크에서 모니터링하고 제어하�
 
 ## 상태 확인
 
+### 포트 포워딩 액션
+
+Beta UI 공유기에서 다음 액션을 사용할 수 있습니다.
+
+- `iptime_manager.get_port_forward_rules`: 수동 규칙(`rules`)과 UPnP 규칙(`upnp_rules`) 조회.
+- `iptime_manager.add_port_forward_rule`: 규칙 추가.
+- `iptime_manager.update_port_forward_rule`: 기존 규칙 이름(`name`)으로 수정. 생략한 값은 유지하며 `new_name`으로 이름을 바꿀 수 있습니다.
+- `iptime_manager.delete_port_forward_rule`: 기존 규칙 이름(`name`)으로 삭제.
+
+모든 액션에서 `config_entry_id`로 공유기를 선택합니다. 활성 규칙 추가 시 이름, 프로토콜(`tcp`/`udp`/`tcpudp`),
+내부 IP와 외부·내부 시작 포트가 필요합니다. 종료 포트는 선택 사항이며 시작 포트만 새로 입력하면 단일 포트입니다.
+범위 지정 시 외부·내부 포트 개수가 같아야 합니다. 규칙별 설명 필드는 공유기 API에 없으며 규칙 이름으로 구분합니다.
+
+```yaml
+- action: iptime_manager.add_port_forward_rule
+  data:
+    config_entry_id: YOUR_ROUTER_CONFIG_ENTRY_ID
+    name: Web server
+    protocol: tcp
+    internal_ip: 192.168.0.50
+    external_port_start: 8080
+    internal_port_start: 80
+```
+
+조회 액션에는 `response_variable`을 지정하세요. 변경 액션도 선택적으로 결과 목록을 응답으로 받을 수 있습니다.
+이름 중복, LAN 주소, 같은 프로토콜의 활성 수동·UPnP 외부 포트 겹침을 검사하고 변경 후 재조회로 확인합니다.
+UPnP 규칙은 조회와 충돌 검사만 지원하고, 공유기의 고정 규칙은 수정·삭제하지 않습니다. GRE 매핑 수정은 지원하지 않습니다.
+공유기 웹 UI 또는 UPnP에서 동시에 발생하는 변경까지 차단할 수는 없습니다.
+
+추가는 기본적으로 활성화됩니다. 비활성 규칙을 추가하거나 기존 규칙을 끄려면 `name`과 `active: false`만 입력하세요.
+비활성 요청에서는 프로토콜·IP·포트를 함께 입력할 수 없습니다. 활성화하려면 `active: true`를 입력하며,
+기존 매핑이 없는 규칙은 프로토콜·IP·포트도 필요합니다. 포트 포워딩 전체 기능의 켜짐 여부는 기존 스위치로 제어합니다.
+
 ### DHCP 수동 IP 할당 액션
 
 Beta UI를 지원하는 공유기에서 `iptime_manager.get_dhcp_reservations`,
