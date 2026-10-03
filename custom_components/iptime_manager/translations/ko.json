@@ -1,4 +1,186 @@
 {
+  "services": {
+    "get_port_forward_rules": {
+      "name": "포트 포워딩 조회",
+      "description": "Beta UI 공유기의 포트 포워딩 규칙을 처리합니다. 조회는 수동 규칙과 UPnP 규칙을 반환합니다.",
+      "fields": {
+        "config_entry_id": {
+          "name": "공유기",
+          "description": "불러온 공유기 구성을 선택하세요."
+        }
+      }
+    },
+    "add_port_forward_rule": {
+      "name": "포트 포워딩 추가",
+      "description": "Beta UI 공유기의 포트 포워딩 규칙을 처리합니다. 조회는 수동 규칙과 UPnP 규칙을 반환합니다.",
+      "fields": {
+        "config_entry_id": {
+          "name": "공유기",
+          "description": "불러온 공유기 구성을 선택하세요."
+        },
+        "name": {
+          "name": "규칙 이름",
+          "description": "추가할 이름 또는 수정·삭제할 기존 규칙 이름입니다."
+        },
+        "active": {
+          "name": "활성화",
+          "description": "추가는 기본적으로 활성화됩니다. 비활성화 시 포트와 IP 입력은 생략하세요."
+        },
+        "protocol": {
+          "name": "프로토콜",
+          "description": "TCP, UDP 또는 TCP+UDP. 수정 시 생략하면 유지합니다."
+        },
+        "internal_ip": {
+          "name": "내부 IP",
+          "description": "활성 규칙 추가 시 필수입니다. 수정 시 생략하면 유지합니다."
+        },
+        "external_port_start": {
+          "name": "외부 시작 포트",
+          "description": "활성 규칙 추가 시 필수. 1~65535."
+        },
+        "external_port_end": {
+          "name": "외부 종료 포트",
+          "description": "범위 지정 시 입력. 시작 포트만 입력하면 단일 포트입니다."
+        },
+        "internal_port_start": {
+          "name": "내부 시작 포트",
+          "description": "활성 규칙 추가 시 필수. 1~65535."
+        },
+        "internal_port_end": {
+          "name": "내부 종료 포트",
+          "description": "외부 범위와 내부 범위의 포트 개수가 같아야 합니다."
+        }
+      }
+    },
+    "update_port_forward_rule": {
+      "name": "포트 포워딩 수정",
+      "description": "Beta UI 공유기의 포트 포워딩 규칙을 처리합니다. 조회는 수동 규칙과 UPnP 규칙을 반환합니다.",
+      "fields": {
+        "config_entry_id": {
+          "name": "공유기",
+          "description": "불러온 공유기 구성을 선택하세요."
+        },
+        "name": {
+          "name": "규칙 이름",
+          "description": "추가할 이름 또는 수정·삭제할 기존 규칙 이름입니다."
+        },
+        "active": {
+          "name": "활성화",
+          "description": "추가는 기본적으로 활성화됩니다. 비활성화 시 포트와 IP 입력은 생략하세요."
+        },
+        "protocol": {
+          "name": "프로토콜",
+          "description": "TCP, UDP 또는 TCP+UDP. 수정 시 생략하면 유지합니다."
+        },
+        "internal_ip": {
+          "name": "내부 IP",
+          "description": "활성 규칙 추가 시 필수입니다. 수정 시 생략하면 유지합니다."
+        },
+        "external_port_start": {
+          "name": "외부 시작 포트",
+          "description": "활성 규칙 추가 시 필수. 1~65535."
+        },
+        "external_port_end": {
+          "name": "외부 종료 포트",
+          "description": "범위 지정 시 입력. 시작 포트만 입력하면 단일 포트입니다."
+        },
+        "internal_port_start": {
+          "name": "내부 시작 포트",
+          "description": "활성 규칙 추가 시 필수. 1~65535."
+        },
+        "internal_port_end": {
+          "name": "내부 종료 포트",
+          "description": "외부 범위와 내부 범위의 포트 개수가 같아야 합니다."
+        },
+        "new_name": {
+          "name": "새 규칙 이름",
+          "description": "규칙 이름을 변경할 때 입력하세요."
+        }
+      }
+    },
+    "delete_port_forward_rule": {
+      "name": "포트 포워딩 삭제",
+      "description": "Beta UI 공유기의 포트 포워딩 규칙을 처리합니다. 조회는 수동 규칙과 UPnP 규칙을 반환합니다.",
+      "fields": {
+        "config_entry_id": {
+          "name": "공유기",
+          "description": "불러온 공유기 구성을 선택하세요."
+        },
+        "name": {
+          "name": "규칙 이름",
+          "description": "추가할 이름 또는 수정·삭제할 기존 규칙 이름입니다."
+        }
+      }
+    },
+    "get_dhcp_reservations": {
+      "name": "DHCP 예약 조회",
+      "description": "Beta UI를 지원하는 공유기의 DHCP 수동 IP 예약을 처리합니다. 조회는 예약 목록을 응답으로 반환합니다.",
+      "fields": {
+        "config_entry_id": {
+          "name": "공유기",
+          "description": "불러온 ipTIME 공유기 구성을 선택하세요."
+        }
+      }
+    },
+    "add_dhcp_reservation": {
+      "name": "DHCP 예약 추가",
+      "description": "Beta UI를 지원하는 공유기의 DHCP 수동 IP 예약을 처리합니다. 조회는 예약 목록을 응답으로 반환합니다.",
+      "fields": {
+        "config_entry_id": {
+          "name": "공유기",
+          "description": "불러온 ipTIME 공유기 구성을 선택하세요."
+        },
+        "mac": {
+          "name": "MAC 주소",
+          "description": "예약 대상 기기의 MAC 주소입니다."
+        },
+        "ip": {
+          "name": "IP 주소",
+          "description": "할당할 LAN IPv4 주소입니다."
+        },
+        "description": {
+          "name": "설명",
+          "description": "수정 시 생략하면 기존 설명을 유지하고, 빈 문자열이면 지웁니다."
+        }
+      }
+    },
+    "update_dhcp_reservation": {
+      "name": "DHCP 예약 수정",
+      "description": "Beta UI를 지원하는 공유기의 DHCP 수동 IP 예약을 처리합니다. 조회는 예약 목록을 응답으로 반환합니다.",
+      "fields": {
+        "config_entry_id": {
+          "name": "공유기",
+          "description": "불러온 ipTIME 공유기 구성을 선택하세요."
+        },
+        "mac": {
+          "name": "MAC 주소",
+          "description": "예약 대상 기기의 MAC 주소입니다."
+        },
+        "ip": {
+          "name": "IP 주소",
+          "description": "할당할 LAN IPv4 주소입니다."
+        },
+        "description": {
+          "name": "설명",
+          "description": "수정 시 생략하면 기존 설명을 유지하고, 빈 문자열이면 지웁니다."
+        }
+      }
+    },
+    "delete_dhcp_reservation": {
+      "name": "DHCP 예약 삭제",
+      "description": "Beta UI를 지원하는 공유기의 DHCP 수동 IP 예약을 처리합니다. 조회는 예약 목록을 응답으로 반환합니다.",
+      "fields": {
+        "config_entry_id": {
+          "name": "공유기",
+          "description": "불러온 ipTIME 공유기 구성을 선택하세요."
+        },
+        "mac": {
+          "name": "MAC 주소",
+          "description": "예약 대상 기기의 MAC 주소입니다."
+        }
+      }
+    }
+  },
   "config": {
     "error": {
       "cannot_connect": "공유기에 연결할 수 없습니다. URL을 확인해 주세요.",

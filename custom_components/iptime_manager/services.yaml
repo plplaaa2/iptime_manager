@@ -1,0 +1,194 @@
+# Summary: DHCP action fields for router selection and reservation management.
+# Related files: services.py, dhcp.py, translations/*.json.
+get_dhcp_reservations:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+add_dhcp_reservation:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+    mac:
+      required: true
+      example: '02:11:22:33:44:55'
+      selector:
+        text:
+    ip:
+      required: true
+      example: '192.168.0.50'
+      selector:
+        text:
+    description:
+      selector:
+        text:
+update_dhcp_reservation:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+    mac:
+      required: true
+      example: '02:11:22:33:44:55'
+      selector:
+        text:
+    ip:
+      required: true
+      example: '192.168.0.50'
+      selector:
+        text:
+    description:
+      selector:
+        text:
+delete_dhcp_reservation:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+    mac:
+      required: true
+      example: '02:11:22:33:44:55'
+      selector:
+        text:
+# Summary: Port rule actions and optional fields for partial updates.
+# Related files: services.py, port_forward.py, translations/*.json.
+get_port_forward_rules:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+add_port_forward_rule:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+    name:
+      required: true
+      selector:
+        text:
+    active:
+      selector:
+        boolean:
+    protocol:
+      selector:
+        select:
+          options:
+            - label: TCP
+              value: tcp
+            - label: UDP
+              value: udp
+            - label: TCP+UDP
+              value: tcpudp
+    internal_ip:
+      selector:
+        text:
+    external_port_start:
+      selector:
+        number:
+          min: 1
+          max: 65535
+          step: 1
+          mode: box
+    external_port_end:
+      selector:
+        number:
+          min: 1
+          max: 65535
+          step: 1
+          mode: box
+    internal_port_start:
+      selector:
+        number:
+          min: 1
+          max: 65535
+          step: 1
+          mode: box
+    internal_port_end:
+      selector:
+        number:
+          min: 1
+          max: 65535
+          step: 1
+          mode: box
+update_port_forward_rule:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+    name:
+      required: true
+      selector:
+        text:
+    active:
+      selector:
+        boolean:
+    protocol:
+      selector:
+        select:
+          options:
+            - label: TCP
+              value: tcp
+            - label: UDP
+              value: udp
+            - label: TCP+UDP
+              value: tcpudp
+    internal_ip:
+      selector:
+        text:
+    external_port_start:
+      selector:
+        number:
+          min: 1
+          max: 65535
+          step: 1
+          mode: box
+    external_port_end:
+      selector:
+        number:
+          min: 1
+          max: 65535
+          step: 1
+          mode: box
+    internal_port_start:
+      selector:
+        number:
+          min: 1
+          max: 65535
+          step: 1
+          mode: box
+    internal_port_end:
+      selector:
+        number:
+          min: 1
+          max: 65535
+          step: 1
+          mode: box
+    new_name:
+      selector:
+        text:
+delete_port_forward_rule:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+    name:
+      required: true
+      selector:
+        text:

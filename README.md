@@ -3,7 +3,7 @@
 [🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.0.9-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.1.0-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 Home Assistant integration for monitoring and controlling EFM ipTIME routers over your local network. No SNMP setup is required.
@@ -18,6 +18,7 @@ Home Assistant integration for monitoring and controlling EFM ipTIME routers ove
 - EasyMesh router mode and connected Agent count
 - Individual device trackers for selected devices, grouped under one Home Presence device
 - Security settings, GeoIP, port forwarding and UPnP
+- DHCP reservation and port forwarding rule actions: list, add, update and delete on beta UI routers
 - Night LED, scheduled reboot and a reboot button in Diagnostics
 
 Available features depend on the router model and firmware.
@@ -46,6 +47,62 @@ Home Presence can also be created before a router is configured, initially with 
 When adding a router, use its management address, for example `http://192.168.0.1`. Include the port if it uses a custom management port.
 
 ## Reading status
+
+### Port forwarding actions
+
+Beta UI routers provide `iptime_manager.get_port_forward_rules`, `add_port_forward_rule`,
+`update_port_forward_rule` and `delete_port_forward_rule`. Select the router with `config_entry_id`.
+Get returns user `rules` and `upnp_rules`; use `response_variable` to receive the result.
+Mutation actions optionally return the updated user rules.
+
+Active additions require `name`, `protocol` (`tcp`/`udp`/`tcpudp`), `internal_ip`,
+`external_port_start` and `internal_port_start`. Optional end ports define ranges of equal lengths.
+A newly supplied start without an end selects a single port. Updates identify the existing rule by `name`,
+preserve omitted fields and optionally rename it with `new_name`. Deletes require the existing `name`.
+The router API has no separate rule description field.
+
+```yaml
+- action: iptime_manager.add_port_forward_rule
+  data:
+    config_entry_id: YOUR_ROUTER_CONFIG_ENTRY_ID
+    name: Web server
+    protocol: tcp
+    internal_ip: 192.168.0.50
+    external_port_start: 8080
+    internal_port_start: 80
+```
+
+Actions validate names, LAN addresses and overlapping active user/UPnP ports for the same protocol,
+serialize action changes per router and verify them by reading back the rules.
+UPnP rules are only queried for responses and conflicts; fixed router rules cannot be edited or deleted.
+GRE mapping edits are unsupported. Concurrent router UI or UPnP changes cannot be fully protected.
+
+Add defaults to active. To create an inactive rule or disable an existing rule, provide only `name` and
+`active: false`; mapping fields cannot accompany an inactive request, matching the router UI contract.
+Use `active: true` to enable a rule, supplying its mapping if it has none. The existing switch controls
+the global port forwarding feature independently of individual rule actions.
+
+### DHCP reservation actions
+
+Routers supporting the beta UI provide `iptime_manager.get_dhcp_reservations`,
+`add_dhcp_reservation`, `update_dhcp_reservation` and `delete_dhcp_reservation`.
+Select the router using `config_entry_id`. Changes require `mac`; add/update also require `ip`.
+The optional `description` is preserved when omitted on update and cleared with an empty string.
+Update keeps the existing MAC address.
+
+Get returns a `reservations` list containing `mac`, `ip` and `description`:
+
+```yaml
+- action: iptime_manager.get_dhcp_reservations
+  data:
+    config_entry_id: YOUR_ROUTER_CONFIG_ENTRY_ID
+  response_variable: dhcp
+```
+
+Add/update check reservation and connected-device IP conflicts, the LAN subnet and router address.
+Failed reads prevent writes; changes are verified by reading the list again.
+Offline static addresses and concurrent changes through the router UI cannot be fully protected.
+Devices may need to renew their DHCP lease or reconnect to use a changed reservation.
 
 - **WAN/LAN Port** shows the physical connection. **WAN/LAN Status** shows recent traffic activity; an idle device can be off.
 - **Internet Status** checks external access from Home Assistant and assumes HA uses this router for Internet access. It is omitted in detected hub/AP mode; cabling-only hub setups may not be recognized.
