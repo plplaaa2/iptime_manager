@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- Add response-capable DHCP reservation list, add, update and delete actions for beta UI routers.
+- Validate duplicate reservation and connected-device IPs, LAN addresses and existing targets; serialize changes per router and verify them by reading back reservations.
+
 ## [1.0.9] - 2026-09-28
 
 ### Changed

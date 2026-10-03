@@ -47,6 +47,28 @@ When adding a router, use its management address, for example `http://192.168.0.
 
 ## Reading status
 
+### DHCP reservation actions
+
+Routers supporting the beta UI provide `iptime_manager.get_dhcp_reservations`,
+`add_dhcp_reservation`, `update_dhcp_reservation` and `delete_dhcp_reservation`.
+Select the router using `config_entry_id`. Changes require `mac`; add/update also require `ip`.
+The optional `description` is preserved when omitted on update and cleared with an empty string.
+Update keeps the existing MAC address.
+
+Get returns a `reservations` list containing `mac`, `ip` and `description`:
+
+```yaml
+- action: iptime_manager.get_dhcp_reservations
+  data:
+    config_entry_id: YOUR_ROUTER_CONFIG_ENTRY_ID
+  response_variable: dhcp
+```
+
+Add/update check reservation and connected-device IP conflicts, the LAN subnet and router address.
+Failed reads prevent writes; changes are verified by reading the list again.
+Offline static addresses and concurrent changes through the router UI cannot be fully protected.
+Devices may need to renew their DHCP lease or reconnect to use a changed reservation.
+
 - **WAN/LAN Port** shows the physical connection. **WAN/LAN Status** shows recent traffic activity; an idle device can be off.
 - **Internet Status** checks external access from Home Assistant and assumes HA uses this router for Internet access. It is omitted in detected hub/AP mode; cabling-only hub setups may not be recognized.
 - **WireGuard Last Handshake** shows the latest handshake time, which can update during a connection.

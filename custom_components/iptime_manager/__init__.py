@@ -13,6 +13,7 @@ from .const import (
 from .api import IPTimeAPI
 from .coordinator import IPTimeDataUpdateCoordinator
 from .presence import IPTimePresenceListCoordinator
+from .services import async_register_services
 
 # Blocking import 경고 해결을 위한 플랫폼 선행 임포트
 from . import device_tracker, sensor, button, binary_sensor, switch, select, number
@@ -21,6 +22,12 @@ from . import device_tracker, sensor, button, binary_sensor, switch, select, num
 # 연결될 파일: api.py, coordinator.py, const.py, sensor.py, device_tracker.py, button.py
 
 _LOGGER = logging.getLogger(__name__)
+
+# Summary: Register actions even when no router configuration is loaded.
+# Related files: services.py, services.yaml, dhcp.py.
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    async_register_services(hass)
+    return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """통합 구성요소 설정."""

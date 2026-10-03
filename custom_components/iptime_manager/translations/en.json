@@ -1,4 +1,74 @@
 {
+  "services": {
+    "get_dhcp_reservations": {
+      "name": "Get DHCP reservations",
+      "description": "Manage DHCP reservations on beta UI routers. Get returns the reservation list as response data.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Router",
+          "description": "Select a loaded ipTIME router configuration."
+        }
+      }
+    },
+    "add_dhcp_reservation": {
+      "name": "Add DHCP reservation",
+      "description": "Manage DHCP reservations on beta UI routers. Get returns the reservation list as response data.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Router",
+          "description": "Select a loaded ipTIME router configuration."
+        },
+        "mac": {
+          "name": "MAC address",
+          "description": "MAC address of the device reservation."
+        },
+        "ip": {
+          "name": "IP address",
+          "description": "LAN IPv4 address to reserve."
+        },
+        "description": {
+          "name": "Description",
+          "description": "Omit on update to preserve the description; use an empty string to clear it."
+        }
+      }
+    },
+    "update_dhcp_reservation": {
+      "name": "Update DHCP reservation",
+      "description": "Manage DHCP reservations on beta UI routers. Get returns the reservation list as response data.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Router",
+          "description": "Select a loaded ipTIME router configuration."
+        },
+        "mac": {
+          "name": "MAC address",
+          "description": "MAC address of the device reservation."
+        },
+        "ip": {
+          "name": "IP address",
+          "description": "LAN IPv4 address to reserve."
+        },
+        "description": {
+          "name": "Description",
+          "description": "Omit on update to preserve the description; use an empty string to clear it."
+        }
+      }
+    },
+    "delete_dhcp_reservation": {
+      "name": "Delete DHCP reservation",
+      "description": "Manage DHCP reservations on beta UI routers. Get returns the reservation list as response data.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Router",
+          "description": "Select a loaded ipTIME router configuration."
+        },
+        "mac": {
+          "name": "MAC address",
+          "description": "MAC address of the device reservation."
+        }
+      }
+    }
+  },
   "config": {
     "error": {
       "cannot_connect": "Cannot connect to the router. Please check the URL.",

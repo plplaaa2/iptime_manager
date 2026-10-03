@@ -1,0 +1,61 @@
+# Summary: DHCP action fields for router selection and reservation management.
+# Related files: services.py, dhcp.py, translations/*.json.
+get_dhcp_reservations:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+add_dhcp_reservation:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+    mac:
+      required: true
+      example: '02:11:22:33:44:55'
+      selector:
+        text:
+    ip:
+      required: true
+      example: '192.168.0.50'
+      selector:
+        text:
+    description:
+      selector:
+        text:
+update_dhcp_reservation:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+    mac:
+      required: true
+      example: '02:11:22:33:44:55'
+      selector:
+        text:
+    ip:
+      required: true
+      example: '192.168.0.50'
+      selector:
+        text:
+    description:
+      selector:
+        text:
+delete_dhcp_reservation:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: iptime_manager
+    mac:
+      required: true
+      example: '02:11:22:33:44:55'
+      selector:
+        text:

@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Final
 from json import loads
 from datetime import datetime, timedelta, timezone
 from .const import *
+from .dhcp import DHCPReservations
 
 # 요약: ipTIME 공유기와의 통신(Web CGI) 담당 API 클래스
 # 연결될 파일: const.py, coordinator.py
@@ -265,6 +266,9 @@ class IPTimeAPI:
         }
         self.efm_session_id: Optional[str] = None
         self._session: Optional[aiohttp.ClientSession] = None
+        # Summary: Keep a per-router reservation lock across action calls.
+        # Related files: dhcp.py, services.py.
+        self.dhcp = DHCPReservations(self)
 
     async def _async_get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:

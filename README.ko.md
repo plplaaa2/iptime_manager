@@ -45,6 +45,27 @@ EFM ipTIME 공유기를 로컬 네트워크에서 모니터링하고 제어하�
 
 ## 상태 확인
 
+### DHCP 수동 IP 할당 액션
+
+Beta UI를 지원하는 공유기에서 `iptime_manager.get_dhcp_reservations`,
+`add_dhcp_reservation`, `update_dhcp_reservation`, `delete_dhcp_reservation` 액션을 사용할 수 있습니다.
+액션 입력의 `config_entry_id`에서 공유기를 선택하고, 변경 시 `mac`과 추가·수정 시 `ip`를 입력합니다.
+`description`은 선택 사항이며 수정 시 생략하면 유지하고 빈 문자열이면 지웁니다. 수정 대상 MAC은 변경하지 않습니다.
+
+조회는 `reservations` 목록(MAC, IP, description)을 응답으로 반환합니다. 스크립트에서는 다음처럼 사용합니다.
+
+```yaml
+- action: iptime_manager.get_dhcp_reservations
+  data:
+    config_entry_id: YOUR_ROUTER_CONFIG_ENTRY_ID
+  response_variable: dhcp
+```
+
+추가·수정은 예약 목록과 연결 기기의 중복 IP, LAN 범위 및 공유기 주소를 검사합니다.
+조회 실패 시 변경을 중단하고, 변경 후 목록을 다시 읽어 결과를 확인합니다.
+오프라인 기기의 수동 고정 IP나 공유기 웹 UI에서 동시에 수행한 변경까지 차단하지는 못합니다.
+예약 변경은 기존 DHCP 임대를 즉시 갱신하지 않으므로 기기의 임대 갱신 또는 재연결이 필요할 수 있습니다.
+
 - **WAN/LAN Port**는 물리 연결, **WAN/LAN Status**는 최근 통신 활동을 표시합니다. 통신이 없는 기기는 Status가 꺼질 수 있습니다.
 - **Internet Status**는 HA에서 외부 접속을 확인하므로 HA가 해당 공유기를 통해 인터넷을 사용하는 구성을 전제로 합니다. 허브/AP 모드에서는 제외되지만, 배선만 바꾼 허브 구성은 자동 판별하지 못할 수 있습니다.
 - **WireGuard Last Handshake**는 가장 최근 handshake 시각입니다. 연결 중에도 갱신될 수 있습니다.

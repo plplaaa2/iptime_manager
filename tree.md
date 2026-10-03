@@ -1,4 +1,4 @@
-Project layout (updated 2026-09-24).
+Project layout (updated 2026-10-03).
 The integration is distributed from custom_components/iptime_manager.
 changelog.jsonl, changelog_1.jsonl and caution.jsonl are local development records excluded from Git.
 Credential files are intentionally omitted from this listing.
@@ -13,6 +13,7 @@ iptime_manager (root)
 |   README.md
 |   README.ko.md
 |   tree.md
+|   tests/test_dhcp.py (offline DHCP contract and conflict tests)
 |
 +---.github
 |   \---workflows
@@ -34,11 +35,14 @@ iptime_manager (root)
         |   const.py
         |   coordinator.py
         |   device_tracker.py
+        |   dhcp.py
         |   manifest.json
         |   number.py
         |   presence.py
         |   select.py
         |   sensor.py
+        |   services.py
+        |   services.yaml
         |   strings.json
         |   switch.py
         |   
@@ -51,6 +55,8 @@ iptime_manager (root)
                 ko.json
 
 Module responsibilities:
+- dhcp.py: DHCP reservation RPCs, conflict validation, per-router locking and readback verification.
+- services.py: router selection and response-capable DHCP action registration.
 - api.py: router API access, elapsed WireGuard handshake conversion, port packet activity and router-mode detection.
 - coordinator.py: collection scheduling, conditional Internet probing, mode-change reload and events.
 - binary_sensor.py: physical Port links, packet Status sensors, Internet Status and EasyMesh agent connectivity entities.
