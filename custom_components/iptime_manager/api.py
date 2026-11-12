@@ -246,6 +246,7 @@ class IPTimeAPI:
         self._last_mesh_status_check = 0.0
         self.result: Dict[str, Any] = {}
         self.web_result: Dict[str, Any] = {}
+        self._dns_security_lock = asyncio.Lock()
         self._latest_firmware_version: Any = None
         self._last_caching_time = 0.0
         self._cached_model = None
@@ -462,6 +463,12 @@ class IPTimeAPI:
                 model_name = _normalize_model_name(product_match.group(1) if product_match else None)
                 self._cached_model = model_name
                 self.web_result["model"] = model_name
+
+            # Summary: Refresh DNS security switch states.
+            # Related files: switch.py.
+            async with self._dns_security_lock:
+                for method in ("network/dns/redirect", "firewall/secure_dns"):
+                    await self._async_read_dns_security(method)
 
             # 3. 자주 변경되지 않는 설정값 (LAN, WAN, DNS, GeoIP, ACL, DoS, UPnP, Reboot, WireGuard 등) 캐싱 처리
             if not use_cache or "lan" not in self.web_result or "wan" not in self.web_result:
@@ -1275,6 +1282,37 @@ class IPTimeAPI:
             self._last_caching_time = 0.0 # 캐시 강제 만료
             return True
         return False
+
+    # Summary: Read and toggle DNS security settings while preserving the router configuration.
+    # Related files: switch.py.
+    async def _async_read_dns_security(self, method: str) -> dict[str, Any] | None:
+        response = await self._async_service_json(f"{method}/get")
+        config = response.get("result") if response.get("error") is None else None
+        if method == "network/dns/redirect" and isinstance(config, dict):
+            config = config.get("config")
+        if isinstance(config, dict) and isinstance(config.get("enable"), bool):
+            self.web_result[method] = config["enable"]
+            return config
+        self.web_result.pop(method, None)
+        return None
+
+    async def async_set_dns_security(self, method: str, enabled: bool) -> bool:
+        async with self._dns_security_lock:
+            config = await self._async_read_dns_security(method)
+            if config is None:
+                return False
+            if config["enable"] == enabled:
+                return True
+            response = await self._async_service_json(
+                f"{method}/set", {**config, "enable": enabled}
+            )
+            applied = await self._async_read_dns_security(method)
+            return (
+                response.get("error") is None
+                and response.get("result") is not None
+                and applied is not None
+                and applied["enable"] == enabled
+            )
 
     async def async_set_web_upnp_relay_enable(self, enable: bool) -> bool:
         """UPnP 포트포워드 릴레이 기능의 활성화 상태를 제어한다. (연결될 파일: switch.py)"""

@@ -219,6 +219,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         if web_data.get("upnp_relay") is not None:
             entities.append(IPTimeUPnPRelaySwitch(coordinator, entry))
 
+        # Summary: Expose each DNS security switch when its state can be read.
+        # Related files: api.py.
+        for method, key, name in (
+            ("network/dns/redirect", "dns_redirect", "DNS Redirect"),
+            ("firewall/secure_dns", "encrypted_dns_block", "Encrypted DNS Blocking"),
+        ):
+            if method in web_data:
+                entities.append(IPTimeDNSSecuritySwitch(coordinator, entry, method, key, name))
+
     # EasyMesh controls are gated by the live controller role and exposed config keys.
     # Their availability does not depend on the generic beta-UI switch collection.
     if mode_switch_supported:
@@ -855,6 +864,40 @@ class IPTimePortForwardSwitch(CoordinatorEntity, SwitchEntity):
 
 
 # 요약: UPnP 포트포워드 릴레이 활성화 여부를 스위치로 제어한다. (연결 파일: api.py)
+# Summary: Control the enabled state of an individual DNS security feature.
+# Related files: api.py.
+class IPTimeDNSSecuritySwitch(CoordinatorEntity, SwitchEntity):
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:dns"
+
+    def __init__(self, coordinator, entry, method: str, key: str, name: str) -> None:
+        super().__init__(coordinator)
+        self._method = method
+        self._attr_unique_id = f"{entry.entry_id}_{key}"
+        self._attr_name = f"{name} ({entry.data.get(CONF_URL)})"
+        self._attr_device_info = {"identifiers": {(DOMAIN, entry.entry_id)}}
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.is_on is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        return (self.coordinator.data or {}).get("web", {}).get(self._method)
+
+    async def _async_set_enabled(self, enabled: bool) -> None:
+        applied = await self.coordinator.api.async_set_dns_security(self._method, enabled)
+        await self.coordinator.async_request_refresh()
+        if not applied:
+            raise HomeAssistantError(f"Could not confirm the setting for {self.name}")
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self._async_set_enabled(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self._async_set_enabled(False)
+
+
 class IPTimeUPnPRelaySwitch(CoordinatorEntity, SwitchEntity):
     """ipTIME UPnP Port-forwarding Relay toggle switch."""
 
