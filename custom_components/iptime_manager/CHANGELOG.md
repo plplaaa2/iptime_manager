@@ -6,10 +6,6 @@
 
 - Add independent DNS redirect and encrypted DNS blocking switches for supported beta UI routers.
 
-### Changed
-
-- Since the previous public release, group selected trackers under one Home Presence device and add DHCP reservation and port forwarding actions for supported beta UI routers. See the entries below for details.
-
 ## [1.1.0] - 2026-10-03
 
 ### Added
