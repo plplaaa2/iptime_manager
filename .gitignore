@@ -17,3 +17,4 @@ ENV/
 **/web_api.md
 main.dart.js
 IPTIME-ROUTER-MIB.txt
+/secrets.yaml
