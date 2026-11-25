@@ -47,7 +47,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = IPTimeDataUpdateCoordinator(hass, api, entry)
     
     _LOGGER.info("Attempting initial ipTIME data collection...")
-    await coordinator.async_config_entry_first_refresh()
+    # Summary: Release private sessions when initial authentication or collection fails.
+    # Related files: api.py, coordinator.py, config_flow.py.
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception:
+        await api.async_close()
+        raise
     _LOGGER.info("Initial ipTIME data collection completed")
 
     hass.data[DOMAIN][entry.entry_id] = coordinator

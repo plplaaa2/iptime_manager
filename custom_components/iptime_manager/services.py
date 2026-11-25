@@ -4,6 +4,7 @@ import voluptuous as vol
 from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_register_admin_service
 
 from .const import DOMAIN, is_presence_list_entry
 from .port_forward import port_number
@@ -18,7 +19,7 @@ def validate_port(value):
         raise vol.Invalid(str(err)) from err
 
 
-# Summary: Register router-specific actions, including response-only list retrieval.
+# Summary: Require admin access for router changes and preserve response-only list retrieval.
 # Related files: __init__.py, dhcp.py, port_forward.py, api.py, services.yaml, translations/*.json.
 def async_register_services(hass):
     async def handle(call):
@@ -49,12 +50,18 @@ def async_register_services(hass):
             fields[vol.Required("ip")] = cv.string
             fields[vol.Optional("description")] = cv.string
         name = "get_dhcp_reservations" if operation == "get" else f"{operation}_dhcp_reservation"
-        hass.services.async_register(
-            DOMAIN, name, handle, schema=vol.Schema(fields),
-            supports_response=SupportsResponse.ONLY if operation == "get" else SupportsResponse.OPTIONAL,
-        )
+        if operation == "get":
+            hass.services.async_register(
+                DOMAIN, name, handle, schema=vol.Schema(fields),
+                supports_response=SupportsResponse.ONLY,
+            )
+        else:
+            async_register_admin_service(
+                hass, DOMAIN, name, handle, schema=vol.Schema(fields),
+                supports_response=SupportsResponse.OPTIONAL,
+            )
 
-    # Summary: Optional update fields preserve existing rule values.
+    # Summary: Restrict rule changes to admins; optional update fields preserve existing values.
     # Related files: port_forward.py, services.yaml, translations/*.json.
     for operation in ("get", "add", "update", "delete"):
         fields = {vol.Required("config_entry_id"): cv.string}
@@ -69,7 +76,13 @@ def async_register_services(hass):
         if operation == "update":
             fields[vol.Optional("new_name")] = cv.string
         name = "get_port_forward_rules" if operation == "get" else f"{operation}_port_forward_rule"
-        hass.services.async_register(
-            DOMAIN, name, handle, schema=vol.Schema(fields),
-            supports_response=SupportsResponse.ONLY if operation == "get" else SupportsResponse.OPTIONAL,
-        )
+        if operation == "get":
+            hass.services.async_register(
+                DOMAIN, name, handle, schema=vol.Schema(fields),
+                supports_response=SupportsResponse.ONLY,
+            )
+        else:
+            async_register_admin_service(
+                hass, DOMAIN, name, handle, schema=vol.Schema(fields),
+                supports_response=SupportsResponse.OPTIONAL,
+            )

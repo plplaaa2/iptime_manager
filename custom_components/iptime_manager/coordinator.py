@@ -1,9 +1,11 @@
 from datetime import timedelta
+from time import monotonic
 from typing import Any, Dict, Optional
 import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.translation import async_get_translations
 from .const import *
 from .api import IPTimeAPI, get_easymesh_role
@@ -44,6 +46,7 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             hass,
             _LOGGER,
             name=f"{DOMAIN}_{entry.data.get(CONF_URL)}",
+            config_entry=entry,
             update_interval=timedelta(seconds=scan_interval),
         )
 
@@ -815,6 +818,14 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 except Exception as ex:
                     _LOGGER.error(f"Error checking WAN link status change: {ex}")
 
+            self.api.reset_retry_delay()
             return combined_data
+        # Summary: Let HA stop polling and start reauthentication on rejected credentials.
+        # Related files: api.py, config_flow.py.
+        except ConfigEntryAuthFailed:
+            raise
         except Exception as err:
-            raise UpdateFailed(f"Error fetching data from router: {err}") from err
+            retry_after = max(0.0, self.api._retry_at - monotonic()) or None
+            raise UpdateFailed(
+                "Could not collect router data", retry_after=retry_after
+            ) from err

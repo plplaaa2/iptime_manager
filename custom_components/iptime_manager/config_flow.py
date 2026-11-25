@@ -4,11 +4,13 @@ import logging
 from typing import Any
 
 import voluptuous as vol
+import aiohttp
 import homeassistant.helpers.config_validation as cv
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
+from homeassistant.exceptions import ConfigEntryAuthFailed
 
 try:
     from homeassistant.components.ssdp import SsdpServiceInfo
@@ -172,19 +174,9 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_validate_router(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Validate credentials and add the router without creating per-device trackers."""
         errors: dict[str, str] = {}
-        api = IPTimeAPI(self.hass, self.temp_config[CONF_URL], self.temp_config[CONF_ID], self.temp_config[CONF_PASSWORD])
-        
-        try:
-            # 리팩토링된 비동기 API 호출
-            if not await api.verify_mobile():
-                errors["base"] = "cannot_connect"
-            elif not await api.async_update():
-                errors["base"] = "invalid_auth"
-        except Exception as err:
-            _LOGGER.error("Error connecting to the router: %s", err)
-            errors["base"] = "unknown"
-        finally:
-            await api.async_close()
+        error = await self._async_validate_credentials(self.temp_config)
+        if error:
+            errors["base"] = error
 
         if not errors:
             return self.async_create_entry(
@@ -208,6 +200,54 @@ class IPTimeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
             }),
             errors=errors
+        )
+
+    # Summary: Validate credentials once and always release the temporary HTTP session.
+    # Related files: api.py, coordinator.py, strings.json, translations/*.json.
+    async def _async_validate_credentials(self, data: dict[str, Any]) -> str | None:
+        api = IPTimeAPI(self.hass, data[CONF_URL], data[CONF_ID], data[CONF_PASSWORD])
+        try:
+            if not await api.async_update():
+                return "cannot_connect"
+        except ConfigEntryAuthFailed:
+            return "invalid_auth"
+        except (aiohttp.ClientError, TimeoutError):
+            return "cannot_connect"
+        except Exception:
+            _LOGGER.error("Unexpected error validating router credentials")
+            return "unknown"
+        finally:
+            await api.async_close()
+        return None
+
+    # Summary: Replace only validated credentials on the existing entry and reload it.
+    # Related files: api.py, __init__.py, strings.json, translations/*.json.
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> FlowResult:
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        entry = self._get_reauth_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            credentials = {
+                CONF_ID: user_input[CONF_ID],
+                CONF_PASSWORD: user_input[CONF_PASSWORD],
+            }
+            error = await self._async_validate_credentials({**entry.data, **credentials})
+            if error is None:
+                return self.async_update_reload_and_abort(entry, data_updates=credentials)
+            errors["base"] = error
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({
+                vol.Required(CONF_ID, default=entry.data.get(CONF_ID, "")): str,
+                vol.Required(CONF_PASSWORD): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+                ),
+            }),
+            errors=errors,
         )
 
     def _presence_inventory(self) -> tuple[bool, dict[str, str]]:

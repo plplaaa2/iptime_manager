@@ -1,23 +1,20 @@
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.util import slugify
 
 from .api import is_easymesh_controller
 from .const import CONF_URL, DOMAIN
+from .admin import require_admin
 
 # Summary: Expose supported EasyMesh controller thresholds as number entities.
 # Related files: api.py, coordinator.py, switch.py, const.py.
-_LOGGER = logging.getLogger(__name__)
 
 
 def _mesh_global_config(web_data: dict[str, Any]) -> dict[str, Any]:
@@ -31,20 +28,8 @@ def _entity_name(name: str, entry: ConfigEntry) -> str:
     return f"{name} ({entry.data.get(CONF_URL)})"
 
 
-def _migrate_entity_id(registry, unique_id: str, name: str) -> None:
-    """Move a legacy model-based entity ID to the integration's named format."""
-    entity_id = registry.async_get_entity_id("number", DOMAIN, unique_id)
-    if entity_id is None:
-        return
-    new_entity_id = f"number.{slugify(name)}"
-    if entity_id == new_entity_id:
-        return
-    try:
-        registry.async_update_entity(entity_id, new_entity_id=new_entity_id)
-    except HomeAssistantError as err:
-        _LOGGER.warning("Could not rename EasyMesh number entity %s: %s", entity_id, err)
-
-
+# Summary: Set up supported mesh controls while preserving registered entity IDs.
+# Related files: switch.py, api.py.
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     web_data = (coordinator.data or {}).get("web", {})
@@ -57,17 +42,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     density_unique_id = f"{entry.entry_id}_easymesh_density_rssi"
     steering_unique_id = f"{entry.entry_id}_easymesh_steering_level"
-    _migrate_entity_id(
-        registry,
-        density_unique_id,
-        _entity_name("EasyMesh Station RSSI Limit", entry),
-    )
-    _migrate_entity_id(
-        registry,
-        steering_unique_id,
-        _entity_name("EasyMesh Steering Level", entry),
-    )
-
     supported = {
         density_unique_id: controller and density_enabled,
         steering_unique_id: controller and "steering_level" in global_config,
@@ -122,6 +96,9 @@ class IPTimeEasyMeshDensityRSSINumber(_IPTimeEasyMeshNumber):
         value = density.get("rssi") if isinstance(density, dict) else None
         return float(value) if isinstance(value, (int, float)) else None
 
+    # Summary: Require an admin before changing the mesh RSSI threshold.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator.api.async_set_easymesh_density_rssi(round(value))
         await self.coordinator.async_request_refresh()
@@ -138,6 +115,9 @@ class IPTimeEasyMeshSteeringLevelNumber(_IPTimeEasyMeshNumber):
         value = _mesh_global_config(self.coordinator.data.get("web", {}) if self.coordinator.data else {}).get("steering_level")
         return float(value) if isinstance(value, (int, float)) else None
 
+    # Summary: Require an admin before changing mesh steering.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator.api.async_set_easymesh_steering_level(round(value))
         await self.coordinator.async_request_refresh()

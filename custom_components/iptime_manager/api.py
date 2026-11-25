@@ -9,6 +9,7 @@ import aiohttp
 from typing import Any, Dict, List, Optional, Final
 from json import loads
 from datetime import datetime, timedelta, timezone
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from .const import *
 from .dhcp import DHCPReservations
 from .port_forward import PortForwardRules
@@ -18,6 +19,20 @@ from .port_forward import PortForwardRules
 
 _LOGGER = logging.getLogger(__name__)
 MESH_STATUS_REFRESH_INTERVAL = 15.0
+
+
+# Summary: Treat ambiguous responses as connection failures, not rejected credentials.
+# Related files: coordinator.py, config_flow.py.
+class RouterConnectionError(aiohttp.ClientError):
+    """The router did not return a usable response."""
+
+
+def _session_error(response: dict[str, Any]) -> bool:
+    error = response.get("error")
+    if not isinstance(error, dict):
+        return False
+    message = str(error.get("message", "")).lower()
+    return any(word in message for word in ("session", "login", "auth"))
 
 
 # Summary: Normalize the router's EasyMesh mode for role-specific entity and API gates.
@@ -251,6 +266,11 @@ class IPTimeAPI:
         self._last_caching_time = 0.0
         self._cached_model = None
         self._port_samples: dict = {}
+        self._login_lock = asyncio.Lock()
+        self._auth_failed = False
+        self._ui_detected = False
+        self._retry_at = 0.0
+        self._retry_delay = 0.0
 
         self._url = url if "http" in url else "http://" + url
         if self._url.endswith("/"):
@@ -275,7 +295,86 @@ class IPTimeAPI:
         # Related files: port_forward.py, services.py.
         self.port_forward = PortForwardRules(self)
 
+    # Summary: Stop rejected credentials and defer network retries without blocking HA.
+    # Related files: coordinator.py, config_flow.py.
+    def _check_ready(self) -> None:
+        if self._auth_failed:
+            raise ConfigEntryAuthFailed("Router credentials were rejected; reauthenticate")
+        if time.monotonic() < self._retry_at:
+            raise RouterConnectionError("Waiting before retrying the router")
+
+    def _defer_retry(self) -> None:
+        now = time.monotonic()
+        if now >= self._retry_at:
+            self._retry_delay = min(max(15.0, self._retry_delay * 2), 300.0)
+            self._retry_at = now + self._retry_delay
+
+    def reset_retry_delay(self) -> None:
+        """Reset backoff only after a complete successful collection."""
+        self._retry_at = 0.0
+        self._retry_delay = 0.0
+
+    def _reject_auth(self) -> None:
+        self._auth_failed = True
+        self.efm_session_id = None
+        raise ConfigEntryAuthFailed("Router credentials were rejected; reauthenticate")
+
+    # Summary: Accept only explicit session cookies or named session assignments.
+    # Related files: config_flow.py, coordinator.py.
+    def _capture_session(self, response, text: str = "") -> bool:
+        cookie = response.cookies.get("efm_session_id")
+        if cookie is not None and cookie.value:
+            self.efm_session_id = cookie.value
+            return True
+        for header in response.headers.getall("Set-Cookie", []):
+            match = re.search(r"(?:^|;\s*)efm_session_id=([^;\s]+)", header)
+            if match:
+                self.efm_session_id = match.group(1).strip('"')
+                return True
+        match = re.search(
+            r"""efm_session_id["']?\s*(?:=|,)\s*["']([A-Za-z0-9_-]+)["']""",
+            text,
+        )
+        if match:
+            self.efm_session_id = match.group(1)
+            return True
+        # Older firmware uses a single-argument setCookie session setter.
+        match = re.search(r"""\bsetCookie\(\s*["']([A-Za-z0-9]{16})["']\s*\)""", text)
+        if match:
+            self.efm_session_id = match.group(1)
+            return True
+        return False
+
+    async def _async_ensure_login(self, expired_session: str | None = None) -> None:
+        async with self._login_lock:
+            self._check_ready()
+            if self.efm_session_id and self.efm_session_id != expired_session:
+                return
+            self.efm_session_id = None
+            try:
+                if not self._ui_detected:
+                    self._beta_ui = await self.verify_beta_ui()
+                    if not self._beta_ui:
+                        await self.verify_mobile()
+                    self._ui_detected = True
+                if self._beta_ui:
+                    success = await self.login_beta_ui()
+                elif self._ismobile:
+                    success = await self.m_login()
+                else:
+                    success = await self.login()
+                if not success:
+                    raise RouterConnectionError("Router login response was not recognized")
+            except ConfigEntryAuthFailed:
+                self._auth_failed = True
+                self.efm_session_id = None
+                raise
+            except (aiohttp.ClientError, TimeoutError):
+                self._defer_retry()
+                raise
+
     async def _async_get_session(self) -> aiohttp.ClientSession:
+        self._check_ready()
         if self._session is None or self._session.closed:
             # HA 공용 세션 대신 전용 독립 세션 생성 (세션 기반 공유기 대응)
             self._session = aiohttp.ClientSession(
@@ -285,6 +384,7 @@ class IPTimeAPI:
         return self._session
 
     async def _async_request(self, method: str, url: str, **kwargs) -> str:
+        self._check_ready()
         try:
             session = await self._async_get_session()
             headers = kwargs.get("headers", self.headers.copy())
@@ -293,71 +393,75 @@ class IPTimeAPI:
             
             kwargs["headers"] = headers
             async with session.request(method, url, **kwargs) as response:
-                return await response.text()
-        except Exception as err:
-            _LOGGER.debug(f"요청 실패 ({url}): {err}")
-            return ""
+                if response.status in (401, 403):
+                    self.efm_session_id = None
+                    raise RouterConnectionError("Router session expired")
+                response.raise_for_status()
+                text = await response.text()
+                if not text:
+                    raise RouterConnectionError("Empty router response")
+                login_form = re.search(
+                    r'name=["\x27]?(?:username|passwd)\b', text, re.IGNORECASE
+                )
+                login_redirect = re.search(
+                    r"""location(?:\.href\s*=|\s*=|\.(?:replace|assign)\()\s*["']"""
+                    r"""[^"']*(?:/login/|login_session\.cgi|m_login\.cgi)""",
+                    text, re.IGNORECASE,
+                )
+                if self.efm_session_id and (login_form or login_redirect):
+                    self.efm_session_id = None
+                    raise RouterConnectionError("Router returned a login form")
+                return text
+        except (aiohttp.ClientError, TimeoutError):
+            self._defer_retry()
+            raise
 
     async def _async_service_json(self, method: str, params: Any = None) -> Dict[str, Any]:
-        """beta UI JSON-RPC 호출 (자동 재로그인 복구 탑재)."""
+        """Retry an explicitly expired session once, without retrying empty replies."""
+        self._check_ready()
+        await self._async_ensure_login()
         url = f"{self._url}{BETA_SERVICE_URN}"
         payload: Dict[str, Any] = {"method": method}
         if params is not None:
             payload["params"] = params
 
         async def _execute_call():
+            self._check_ready()
             headers = self.headers.copy()
             if self.efm_session_id:
                 headers["Cookie"] = f"efm_session_id={self.efm_session_id}"
             
             session = await self._async_get_session()
             async with session.post(url, json=payload, headers=headers) as response:
+                if response.status in (401, 403):
+                    return {"error": {"message": "session expired"}}
+                response.raise_for_status()
                 try:
-                    return await response.json()
-                except Exception:
-                    text = await response.text()
-                    try:
-                        return loads(text)
-                    except Exception:
-                        return {}
+                    result = loads(await response.text())
+                except (ValueError, TypeError) as err:
+                    raise RouterConnectionError("Invalid JSON response") from err
+                if not isinstance(result, dict) or not result:
+                    raise RouterConnectionError("Empty or invalid RPC response")
+                return result
 
         try:
+            sent_session = self.efm_session_id
             res = await _execute_call()
-            # 만약 세션 만료 에러가 감지되거나 빈 응답인 경우 즉시 재로그인 시도
-            is_unauthorized = False
-            if res.get("error") is not None:
-                err_code = res.get("error", {}).get("code")
-                err_msg = str(res.get("error", {}).get("message", "")).lower()
-                if err_code in [-32000, -32602] or "session" in err_msg or "login" in err_msg or "auth" in err_msg:
-                    is_unauthorized = True
-            
-            if is_unauthorized or not res:
-                _LOGGER.debug(f"세션 만료 감지 또는 빈 응답으로 재로그인 실행: {method}")
-                self.efm_session_id = None
-                if await self.login_beta_ui():
-                    # 새 세션으로 즉시 1회 재시도!
-                    res = await _execute_call()
+            if _session_error(res):
+                await self._async_ensure_login(expired_session=sent_session)
+                res = await _execute_call()
+                if _session_error(res):
+                    self._reject_auth()
             return res
-        except Exception as err:
-            _LOGGER.debug(f"서비스 호출 실패 ({method}): {err}")
-            return {}
+        except (aiohttp.ClientError, TimeoutError):
+            self._defer_retry()
+            raise
 
     async def async_update(self, rssi_limit: int = DEFAULT_RSSI_LIMIT) -> bool:
         """데이터 업데이트 메인 로직 (안정화)."""
-        # 1. 세션이 없으면 로그인 시도
-        if not self.efm_session_id:
-            if await self.verify_beta_ui():
-                self._beta_ui = True
-                if not await self.login_beta_ui(): 
-                    _LOGGER.debug("베타 UI 로그인 실패")
-                    return False
-                await self.beta_ui_check_mesh()
-            else:
-                await self.verify_mobile()
-                if self._ismobile:
-                    if not await self.m_login(): return False
-                else:
-                    if not await self.login(): return False
+        await self._async_ensure_login()
+        if self._beta_ui:
+            await self.beta_ui_check_mesh()
 
         # Summary: Refresh legacy UI mesh state so disabling EasyMesh promotes an Agent to standalone.
         # Related files: coordinator.py, presence.py, config_flow.py.
@@ -388,7 +492,8 @@ class IPTimeAPI:
         if self.result.get("session") is False:
             _LOGGER.debug("세션 만료 감지, 다음 주기에서 재로그인 시도")
             self.efm_session_id = None
-            return False
+            self._defer_retry()
+            raise RouterConnectionError("Router session expired")
             
         return True
 
@@ -659,6 +764,8 @@ class IPTimeAPI:
             uptime = self.web_result.get("system_info", {}).get("uptime")
             self.web_result["uptime"] = uptime if isinstance(uptime, (int, float)) and uptime >= 0 else None
             return True
+        except (ConfigEntryAuthFailed, aiohttp.ClientError, TimeoutError):
+            raise
         except Exception as err:
             _LOGGER.debug(f"웹 데이터 수집 실패: {err}")
             return False
@@ -891,123 +998,95 @@ class IPTimeAPI:
             return True
         return False
 
+    # Summary: Bound legacy login attempts and classify rejected credentials.
+    # Related files: config_flow.py, coordinator.py.
     async def login(self) -> bool:
-        """로그인 시도 (구형 및 신형 주소 모두 대응)"""
-        for urn in [LOGIN_NEW_URN, LOGIN_URN]:
-            url = f"{self._url}{urn}"
-            data = {"username": self._user_id, "passwd": self._user_pw}
-            if urn == LOGIN_NEW_URN:
-                data = {"tmenu": "main", "smenu": "main", "username": self._user_id, "passwd": self._user_pw}
-                
-            try:
-                session = await self._async_get_session()
-                async with session.post(url, data=data, allow_redirects=True) as response:
-                    text = await response.text()
-                    # 세션 ID(16자리 문자열) 추출
-                    ids = re.findall(re.compile(r"\w{16}"), text)
-                    if ids:
-                        self.efm_session_id = ids[0]
-                        _LOGGER.debug(f"로그인 성공 (URL: {urn}, Session: {self.efm_session_id[:4]}****)")
-                        return True
-            except Exception:
-                _LOGGER.debug("로그인 요청 실패 (경로: %s)", urn)
-        return False
+        for urn in (LOGIN_NEW_URN, LOGIN_URN):
+            if await self._async_legacy_login(urn):
+                return True
+        raise RouterConnectionError("Legacy login response was not recognized")
+
+    async def _async_legacy_login(self, urn: str) -> bool:
+        data = {"username": self._user_id, "passwd": self._user_pw}
+        if urn == LOGIN_NEW_URN:
+            data.update(tmenu="main", smenu="main")
+        try:
+            session = await self._async_get_session()
+            async with session.post(self._url + urn, data=data, allow_redirects=True) as response:
+                if response.status in (404, 405):
+                    return False
+                if response.status in (401, 403):
+                    self._reject_auth()
+                response.raise_for_status()
+                text = await response.text()
+                if self._capture_session(response, text):
+                    return True
+                if re.search(
+                    r"login[_ -]?(?:fail|error)|invalid.*(?:password|credential)|"
+                    r"incorrect.*(?:password|credential)|name=[\"']?passwd|"
+                    r"일치하지|잘못된|로그인.*실패|captcha|locked",
+                    text, re.IGNORECASE,
+                ):
+                    self._reject_auth()
+                return False
+        except (aiohttp.ClientError, TimeoutError):
+            self._defer_retry()
+            raise
 
     async def m_login(self) -> bool:
-        url = f"{self._url}{M_LOGIN_URN}"
-        data = {"username": self._user_id, "passwd": self._user_pw}
-        try:
-            session = await self._async_get_session()
-            async with session.post(url, data=data) as response:
-                text = await response.text()
-                ids = re.findall(re.compile(r"\w{16}"), text)
-                if ids:
-                    self.efm_session_id = ids[0]
-                    return True
-        except Exception: pass
-        return False
+        if await self._async_legacy_login(M_LOGIN_URN):
+            return True
+        raise RouterConnectionError("Mobile login response was not recognized")
 
     async def session_update_beta_ui(self) -> None:
-        """베타 UI 세션 업데이트 (연장)"""
-        url = f"{self._url}{BETA_SERVICE_URN}"
-        data = {"method":"session/update"}
-        headers = self.headers.copy()
-        if self.efm_session_id:
-            headers["Cookie"] = f"efm_session_id={self.efm_session_id}"
-            
-        try:
-            session = await self._async_get_session()
-            async with session.post(url, json=data, headers=headers) as response:
-                await response.text()
-        except Exception: pass
+        """Extend sessions through the shared authentication boundary."""
+        await self._async_service_json("session/update")
 
+    # Summary: Reject invalid credentials once without logging credentials or sessions.
+    # Related files: config_flow.py, coordinator.py.
     async def login_beta_ui(self) -> bool:
-        """베타 UI 로그인 및 세션 쿠키 추출 (최종 강화 버전)."""
-        url = f"{self._url}{BETA_SERVICE_URN}"
-        data = {"method":"session/login", "params":{"id": self._user_id, "pw": self._user_pw}}
-        
-        # 세션 초기화 (깨끗한 상태에서 로그인 시도)
-        if self._session:
-            await self._session.close()
-            self._session = None
-            
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-            "Content-Type": "application/json",
-            "Origin": self._url,
-            "Referer": f"{self._url}/",
-            "Connection": "keep-alive"
-        }
-        
+        data = {"method": "session/login", "params": {"id": self._user_id, "pw": self._user_pw}}
         try:
             session = await self._async_get_session()
-            async with session.post(url, json=data, headers=headers) as response:
-                res_json = await response.json()
-                if res_json and res_json.get('result') == "done":
-                    # 쿠키 추출 수동화 및 자동화 병합 최종 강화 (연결될 파일: select.py, switch.py)
-                    session_id = None
-                    set_cookie_headers = response.headers.getall("Set-Cookie", [])
-                    for cookie_str in set_cookie_headers:
-                        if "efm_session_id=" in cookie_str:
-                            parts = cookie_str.split(";")
-                            for part in parts:
-                                if "efm_session_id=" in part:
-                                    session_id = part.split("=")[-1].strip()
-                                    break
-                    
-                    if not session_id:
-                        cookie_obj = response.cookies.get('efm_session_id')
-                        if cookie_obj:
-                            session_id = cookie_obj.value
-                            
-                    if session_id:
-                        self.efm_session_id = session_id
-                        _LOGGER.debug(f"베타 UI 세션 아이디 확보 성공 (Session ID: {self.efm_session_id[:4]}****)")
-                    else:
-                        _LOGGER.debug("쿠키가 없으나 결과가 done이므로 계속 진행")
-                        # 쿠키가 없어도 일단 진행 (이후 요청에서 401 뜨면 그때 세션 파기)
-                    
-                    return True
-                else:
-                    _LOGGER.warning("베타 UI 로그인 거부됨")
-        except Exception:
-            _LOGGER.warning("베타 UI 로그인 요청 중 오류 발생")
-        return False
+            async with session.post(
+                self._url + BETA_SERVICE_URN, json=data, headers=self.headers.copy()
+            ) as response:
+                if response.status in (401, 403):
+                    self._reject_auth()
+                response.raise_for_status()
+                try:
+                    result = loads(await response.text())
+                except (ValueError, TypeError) as err:
+                    raise RouterConnectionError("Invalid login response") from err
+                if not isinstance(result, dict) or not result:
+                    raise RouterConnectionError("Empty login response")
+                if result.get("result") == "done":
+                    if self._capture_session(response):
+                        return True
+                    raise RouterConnectionError("Login response did not provide a session")
+                error = result.get("error")
+                if (isinstance(error, dict) and error.get("code") != -32601) or result.get("result") in (
+                    False, "fail", "failed", "denied", "invalid"
+                ):
+                    self._reject_auth()
+                raise RouterConnectionError("Login response was not recognized")
+        except (aiohttp.ClientError, TimeoutError):
+            self._defer_retry()
+            raise
 
     async def verify_beta_ui(self) -> bool:
-        """베타 UI 여부 판별 (파일 존재 여부 기반)."""
+        """Do not attempt legacy logins when UI detection fails over the network."""
         urn = BETA_UI_URN if BETA_UI_URN.startswith("/") else f"/{BETA_UI_URN}"
-        url = f"{self._url}{urn}flutter_bootstrap.js"
         try:
             session = await self._async_get_session()
-            async with session.get(url, timeout=3) as response:
-                if response.status == 200:
-                    _LOGGER.debug("베타 UI(Flutter) 기기 확인됨")
-                    return True
-        except Exception: pass
-        return False
+            async with session.get(f"{self._url}{urn}flutter_bootstrap.js", timeout=3) as response:
+                if response.status in (404, 405):
+                    return False
+                response.raise_for_status()
+                return response.status == 200
+        except (aiohttp.ClientError, TimeoutError):
+            self._defer_retry()
+            raise
 
     async def verify_mobile(self) -> bool:
         text = await self._async_request("GET", f"{self._url}{HOSTINFO_URN}")
@@ -1037,20 +1116,10 @@ class IPTimeAPI:
         return self._ismesh
 
     async def beta_ui_check_mesh(self) -> bool:
-        url = f"{self._url}{BETA_SERVICE_URN}"
-        data = {"method":"easymesh/info"}
-        headers = self.headers.copy()
-        if self.efm_session_id:
-            headers["Cookie"] = f"efm_session_id={self.efm_session_id}"
-            
-        try:
-            session = await self._async_get_session()
-            async with session.post(url, json=data, headers=headers) as response:
-                res_json = await response.json()
-                result = res_json.get("result") if isinstance(res_json, dict) else None
-                if isinstance(result, dict) and "active" in result:
-                    self._ismesh = bool(result["active"])
-        except Exception: pass
+        response = await self._async_service_json("easymesh/info")
+        result = response.get("result")
+        if isinstance(result, dict) and "active" in result:
+            self._ismesh = bool(result["active"])
         return self._ismesh
 
     async def wlan_check(self, rssi_limit: int = DEFAULT_RSSI_LIMIT) -> Dict:
@@ -1071,33 +1140,17 @@ class IPTimeAPI:
         return result_dict
 
     async def beta_ui_wlan_check(self, rssi_limit: int = DEFAULT_RSSI_LIMIT) -> Dict:
-        """베타 UI 기기 목록 조회 (수동 쿠키 주입)."""
-        url = f"{self._url}{BETA_SERVICE_URN}"
-        data = {"method":"network/interface/lan/stations"}
-        headers = self.headers.copy()
-        if self.efm_session_id:
-            headers["Cookie"] = f"efm_session_id={self.efm_session_id}"
-            
-        try:
-            session = await self._async_get_session()
-            async with session.post(url, json=data, headers=headers) as response:
-                res_json = await response.json()
-                result = res_json.get("result") if isinstance(res_json, dict) else None
-                if isinstance(result, list):
-                    res = self.beta_ui_device_parsing(result)
-                    if self._ismesh:
-                        res.update(await self.get_mesh_station(rssi_limit=rssi_limit))
-                    res["session"] = True
-                    return res
-                _LOGGER.debug(
-                    "Beta UI client list response was not a list (HTTP %s, result type: %s, keys: %s)",
-                    response.status,
-                    type(result).__name__,
-                    sorted(res_json) if isinstance(res_json, dict) else type(res_json).__name__,
-                )
-        except Exception as err:
-            _LOGGER.debug(f"베타 UI 기기 조회 실패: {err}")
-        return {"session": False}
+        """Preserve authentication failures instead of treating them as empty device lists."""
+        response = await self._async_service_json("network/interface/lan/stations")
+        devices = response.get("result")
+        if not isinstance(devices, list):
+            self._defer_retry()
+            raise RouterConnectionError("Router client list response was not a list")
+        result = self.beta_ui_device_parsing(devices)
+        if self._ismesh:
+            result.update(await self.get_mesh_station(rssi_limit=rssi_limit))
+        result["session"] = True
+        return result
 
     def beta_ui_device_parsing(self, response_json: List) -> Dict:
         """베타 UI(Flutter 기반) 전용 기기 목록 파싱 (계층 구조 대응)."""
@@ -1228,6 +1281,8 @@ class IPTimeAPI:
                 if not response.get("error"):
                     _LOGGER.info("공유기 재부팅 명령 전송 (JSON-RPC)")
                     return True
+            except (ConfigEntryAuthFailed, aiohttp.ClientError, TimeoutError):
+                raise
             except Exception as err:
                 _LOGGER.debug(f"JSON-RPC 재부팅 시도 실패: {err}")
 
@@ -1236,6 +1291,8 @@ class IPTimeAPI:
             await self._async_request("GET", url)
             _LOGGER.info("공유기 재부팅 명령 전송 (Web CGI)")
             return True
+        except (ConfigEntryAuthFailed, aiohttp.ClientError, TimeoutError):
+            raise
         except Exception as err: 
             _LOGGER.debug(f"Web CGI 재부팅 시도 실패: {err}")
             return False
@@ -1267,6 +1324,8 @@ class IPTimeAPI:
                 return True
             else:
                 _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 중 API 오류: {response.get('error')}")
+        except (ConfigEntryAuthFailed, aiohttp.ClientError, TimeoutError):
+            raise
         except Exception as err:
             _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 실패: {err}")
         return False

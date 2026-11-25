@@ -190,11 +190,17 @@
       "invalid_name": "Enter a name for the sensor."
     },
     "abort": {
+      "reauth_successful": "Reauthentication was successful.",
       "no_eligible_router": "Add a standalone router or EasyMesh controller first.",
       "no_devices_found": "No devices are available for a presence list.",
       "already_configured": "Home Presence is already configured. Edit its options to change sensors."
     },
     "step": {
+      "reauth_confirm": {
+        "title": "Reconnect to the ipTIME router",
+        "description": "Router authentication failed. Enter the current administrator credentials.",
+        "data": {"id": "ID", "password": "Password"}
+      },
       "user": {
         "title": "Choose what to add",
         "menu_options": {
