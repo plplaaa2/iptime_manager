@@ -11,26 +11,12 @@ from homeassistant.const import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers import entity_registry as er
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.util import slugify
 
 from .const import DOMAIN, CONF_URL
 from .admin import require_admin
 from .api import format_channel_string, is_easymesh_agent, is_easymesh_controller
 
 _LOGGER = logging.getLogger(__name__)
-
-
-# Summary: Restore controller-only EasyMesh switch entity IDs after the naming experiment.
-# Related files: number.py, api.py.
-def _restore_easymesh_switch_entity_id(registry, unique_id: str, model: str, name: str) -> None:
-    entity_id = registry.async_get_entity_id("switch", DOMAIN, unique_id)
-    new_entity_id = f"switch.{slugify(model + ' ' + name)}"
-    if entity_id is None or entity_id == new_entity_id:
-        return
-    try:
-        registry.async_update_entity(entity_id, new_entity_id=new_entity_id)
-    except HomeAssistantError as err:
-        _LOGGER.warning("Could not restore EasyMesh switch entity ID %s: %s", entity_id, err)
 
 
 def _entity_key_part(value: Any) -> str:
@@ -136,6 +122,8 @@ def _get_web_security_block(web_data: Dict[str, Any], key: str) -> Dict[str, Any
     return block if isinstance(block, dict) else {}
 
 
+# Summary: Set up supported router controls while preserving registered entity IDs.
+# Related files: number.py, api.py.
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
     web_data = (coordinator.data or {}).get("web", {})
@@ -150,7 +138,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     backhaul_supported = role == "controller" and isinstance(mesh_global, dict) and "bh_wired_lock" in mesh_global
     density_supported = role == "controller" and isinstance(mesh_global, dict) and isinstance(mesh_global.get("density_control"), dict)
     mode_switch_supported = role in {"controller", "alone"} and isinstance(mesh_global, dict) and "enable" in mesh_global
-    model = str(web_data.get("model", "ipTIME Router"))
     wg_supported = role != "agent" and web_data.get("wg_server") is not None
     stale_ids = []
     if not wg_supported:
@@ -234,20 +221,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     if mode_switch_supported:
         entities.append(IPTimeEasyMeshModeSwitch(coordinator, entry))
     if backhaul_supported:
-        _restore_easymesh_switch_entity_id(
-            registry,
-            f"{entry.entry_id}_easymesh_wired_backhaul_lock",
-            model,
-            f"EasyMesh Wired Backhaul Lock {entry.data.get(CONF_URL)}",
-        )
         entities.append(IPTimeEasyMeshWiredBackhaulLockSwitch(coordinator, entry))
     if density_supported:
-        _restore_easymesh_switch_entity_id(
-            registry,
-            f"{entry.entry_id}_easymesh_density_control",
-            model,
-            f"EasyMesh Dense Configuration {entry.data.get(CONF_URL)}",
-        )
         entities.append(IPTimeEasyMeshDensityControlSwitch(coordinator, entry))
 
     async_add_entities(entities)
