@@ -1,4 +1,4 @@
-Project layout (updated 2026-10-03).
+Project layout (updated 2026-11-25).
 The integration is distributed from custom_components/iptime_manager.
 changelog.jsonl, changelog_1.jsonl and caution.jsonl are local development records excluded from Git.
 Credential files are intentionally omitted from this listing.
@@ -13,6 +13,7 @@ iptime_manager (root)
 |   README.md
 |   README.ko.md
 |   tree.md
+|   tests/test_admin.py (offline entity authorization tests)
 |   tests/test_dhcp.py (offline DHCP contract and conflict tests)
 |   tests/test_port_forward.py (offline port forwarding contract and conflict tests)
 |
@@ -30,6 +31,7 @@ iptime_manager (root)
         |   __init__.py
         |   api.py
         |   binary_sensor.py
+        |   admin.py
         |   button.py
         |   CHANGELOG.md
         |   config_flow.py
@@ -57,6 +59,7 @@ iptime_manager (root)
                 ko.json
 
 Module responsibilities:
+- admin.py: HA administrator checks for router-changing entity actions, allowing internal calls without a user context.
 - dhcp.py: DHCP reservation RPCs, conflict validation, per-router locking and readback verification.
 - port_forward.py: user port forwarding RPCs, UPnP conflict checks, partial updates and readback verification.
 - services.py: router selection and response-capable DHCP and port forwarding action registration.

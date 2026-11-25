@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
 from .const import DOMAIN, CONF_URL
+from .admin import require_admin
 
 # 요약: 공유기를 재부팅(Reboot)하는 액션을 담당하는 버튼 엔티티
 # 연결될 파일: api.py, coordinator.py
@@ -39,6 +40,9 @@ class IPTimeRebootButton(CoordinatorEntity, ButtonEntity):
         self._attr_name = f"Reboot ({entry.data.get(CONF_URL)})"
         self._attr_unique_id = f"{entry.entry_id}_reboot"
 
+    # Summary: Require an admin before rebooting the router.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_press(self) -> None:
         """버튼이 눌렸을 때 실행."""
         await self.coordinator.api.async_reboot()

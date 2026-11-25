@@ -14,6 +14,7 @@ from homeassistant.util import slugify
 
 from .api import is_easymesh_controller
 from .const import CONF_URL, DOMAIN
+from .admin import require_admin
 
 # Summary: Expose supported EasyMesh controller thresholds as number entities.
 # Related files: api.py, coordinator.py, switch.py, const.py.
@@ -122,6 +123,9 @@ class IPTimeEasyMeshDensityRSSINumber(_IPTimeEasyMeshNumber):
         value = density.get("rssi") if isinstance(density, dict) else None
         return float(value) if isinstance(value, (int, float)) else None
 
+    # Summary: Require an admin before changing the mesh RSSI threshold.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator.api.async_set_easymesh_density_rssi(round(value))
         await self.coordinator.async_request_refresh()
@@ -138,6 +142,9 @@ class IPTimeEasyMeshSteeringLevelNumber(_IPTimeEasyMeshNumber):
         value = _mesh_global_config(self.coordinator.data.get("web", {}) if self.coordinator.data else {}).get("steering_level")
         return float(value) if isinstance(value, (int, float)) else None
 
+    # Summary: Require an admin before changing mesh steering.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator.api.async_set_easymesh_steering_level(round(value))
         await self.coordinator.async_request_refresh()

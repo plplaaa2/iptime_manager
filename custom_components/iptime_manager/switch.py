@@ -14,6 +14,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import slugify
 
 from .const import DOMAIN, CONF_URL
+from .admin import require_admin
 from .api import format_channel_string, is_easymesh_agent, is_easymesh_controller
 
 _LOGGER = logging.getLogger(__name__)
@@ -272,10 +273,16 @@ class IPTimeEasyMeshModeSwitch(CoordinatorEntity, SwitchEntity):
         global_config = config.get("global", {}) if isinstance(config, dict) else {}
         return bool(global_config.get("enable")) if isinstance(global_config, dict) else False
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_easymesh_enabled(True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_easymesh_enabled(False)
         await self.coordinator.async_request_refresh()
@@ -311,10 +318,16 @@ class IPTimeEasyMeshWiredBackhaulLockSwitch(CoordinatorEntity, SwitchEntity):
         global_config = config.get("global", {}) if isinstance(config, dict) else {}
         return bool(global_config.get("bh_wired_lock")) if isinstance(global_config, dict) else False
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_easymesh_wired_backhaul_lock(True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_easymesh_wired_backhaul_lock(False)
         await self.coordinator.async_request_refresh()
@@ -351,10 +364,16 @@ class IPTimeEasyMeshDensityControlSwitch(CoordinatorEntity, SwitchEntity):
         density = global_config.get("density_control", {}) if isinstance(global_config, dict) else {}
         return bool(density.get("enable")) if isinstance(density, dict) else False
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_easymesh_density_control(True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_easymesh_density_control(False)
         await self.coordinator.async_request_refresh()
@@ -422,6 +441,9 @@ class IPTimeWifiSwitch(CoordinatorEntity, SwitchEntity):
             "security": _web_wireless_security_label(bss_info.get("authenc")),
         }
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the wireless BSS."""
         await self.coordinator.api.async_set_web_wireless_bss_enable(
@@ -431,6 +453,9 @@ class IPTimeWifiSwitch(CoordinatorEntity, SwitchEntity):
         await self.coordinator.async_request_refresh()
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the wireless BSS."""
         await self.coordinator.api.async_set_web_wireless_bss_enable(
@@ -479,10 +504,16 @@ class IPTimeGeoIPSwitch(CoordinatorEntity, SwitchEntity):
             "accept_list": geoip.get("accept_list"),
         }
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_geoip_enable(True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_geoip_enable(False)
         await self.coordinator.async_request_refresh()
@@ -532,10 +563,16 @@ class IPTimeAccessListSwitch(CoordinatorEntity, SwitchEntity):
             "filter_enabled": wan1.get("filter", {}).get("flag"),
         }
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_accesslist_enable(True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_accesslist_enable(False)
         await self.coordinator.async_request_refresh()
@@ -575,10 +612,16 @@ class IPTimeSecuritySwitch(CoordinatorEntity, SwitchEntity):
             
         return bool(security.get(self._key))
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_security_switch(self._key, True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_security_switch(self._key, False)
         await self.coordinator.async_request_refresh()
@@ -611,10 +654,16 @@ class IPTimeUPnPSwitch(CoordinatorEntity, SwitchEntity):
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         return bool(web_data.get("upnp_config", False))
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_upnp_enable(True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_upnp_enable(False)
         await self.coordinator.async_request_refresh()
@@ -658,6 +707,9 @@ class IPTimeAutoRebootSwitch(CoordinatorEntity, SwitchEntity):
             "reboot_days": timer.get("days", ["Fri"]),
         }
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         timer = web_data.get("reboot_timer", {})
@@ -667,6 +719,9 @@ class IPTimeAutoRebootSwitch(CoordinatorEntity, SwitchEntity):
         await self.coordinator.api.async_set_web_reboot_timer(True, hour, min_time, days)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         timer = web_data.get("reboot_timer", {})
@@ -704,10 +759,16 @@ class IPTimeKeepConnectSwitch(CoordinatorEntity, SwitchEntity):
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         return bool(web_data.get("nat_config", False))
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_nat_config(True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_nat_config(False)
         await self.coordinator.async_request_refresh()
@@ -749,6 +810,9 @@ class IPTimeWanReconnectSwitch(CoordinatorEntity, SwitchEntity):
             "detect_interval_seconds": heartbeat.get("interval", 3),
         }
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         heartbeat = web_data.get("wan_heartbeat", {})
@@ -756,6 +820,9 @@ class IPTimeWanReconnectSwitch(CoordinatorEntity, SwitchEntity):
         await self.coordinator.api.async_set_web_wan_heartbeat(True, interval)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         heartbeat = web_data.get("wan_heartbeat", {})
@@ -804,10 +871,16 @@ class IPTimeWireGuardServerSwitch(CoordinatorEntity, SwitchEntity):
             "pubkey": wg_server.get("pubkey"),
         }
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_wg_server_run(True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_wg_server_run(False)
         await self.coordinator.async_request_refresh()
@@ -843,10 +916,16 @@ class IPTimePortForwardSwitch(CoordinatorEntity, SwitchEntity):
             return False
         return bool(pf.get("enable", False))
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_portforward_enable(True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_portforward_enable(False)
         await self.coordinator.async_request_refresh()
@@ -891,9 +970,15 @@ class IPTimeDNSSecuritySwitch(CoordinatorEntity, SwitchEntity):
         if not applied:
             raise HomeAssistantError(f"Could not confirm the setting for {self.name}")
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._async_set_enabled(True)
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._async_set_enabled(False)
 
@@ -913,10 +998,16 @@ class IPTimeUPnPRelaySwitch(CoordinatorEntity, SwitchEntity):
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         return bool(web_data.get("upnp_relay", False))
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_upnp_relay_enable(True)
         await self.coordinator.async_request_refresh()
 
+    # Summary: Require an admin before changing router configuration.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.api.async_set_web_upnp_relay_enable(False)
         await self.coordinator.async_request_refresh()

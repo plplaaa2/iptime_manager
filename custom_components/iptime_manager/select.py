@@ -13,6 +13,7 @@ from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN, CONF_URL
 from .api import channel_option_value, is_easymesh_agent
+from .admin import require_admin
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -119,8 +120,9 @@ class IPTimeGeoIPSelect(CoordinatorEntity, SelectEntity):
             "accept_list": geoip.get("accept_list"),
         }
 
-    # Summary: Apply the selected GeoIP policy without modifying country lists.
-    # Related files: api.py, coordinator.py.
+    # Summary: Require an admin to apply GeoIP policy while preserving country lists.
+    # Related files: admin.py, api.py, coordinator.py.
+    @require_admin
     async def async_select_option(self, option: str) -> None:
         enable, policy = _option_to_policy(option)
         if policy == "off":
@@ -290,6 +292,9 @@ class IPTimeRebootDaySelect(CoordinatorEntity, SelectEntity):
         first_day = str(days[0]).lower()
         return day_map.get(first_day, "Friday")
 
+    # Summary: Require an admin before changing the reboot schedule.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_select_option(self, option: str) -> None:
         day_map = {
             "Everyday": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
@@ -396,6 +401,9 @@ class IPTimeWifiChannelSelect(CoordinatorEntity, SelectEntity):
         except Exception as err:
             _LOGGER.debug(f"Failed to update channel list for band {self._band}: {err}")
 
+    # Summary: Require an admin before changing the wireless channel.
+    # Related files: admin.py, api.py.
+    @require_admin
     async def async_select_option(self, option: str) -> None:
         """사용자가 채널 선택 시 공유기 채널 변경 실행."""
         channel_to_set = option.split(" ")[0] if option != "auto" else "auto"
