@@ -13,9 +13,7 @@
     "requirements": [],
     "ssdp": [
         {
-            "manufacturer": "EFM Networks"
-        },
-        {
+            "manufacturer": "EFM Networks",
             "deviceType": "urn:schemas-upnp-org:device:InternetGatewayDevice:1"
         }
     ],
