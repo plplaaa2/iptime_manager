@@ -2,31 +2,26 @@
 
 ## [1.1.2] - 2026-11-25
 
-### 주요 변경사항 — Home Assistant 관리자 권한
+### Breaking Changes — Home Assistant Admin Permissions
 
-- **공유기 설정을 변경하는 주요 액션과 엔티티를 HA 관리자 전용으로 제한했습니다.** 여기서 관리자는 Home Assistant의 관리자 사용자를 의미합니다.
-- **포트포워딩 규칙·DHCP 예약의 추가·수정·삭제 액션 6개**에 관리자 권한 검사를 적용했습니다. 조회 액션은 기존처럼 사용할 수 있습니다.
-- **GeoIP, Access List, 공격 방어, 포트포워딩 전체 활성화, UPnP·UPnP Relay, WireGuard, DNS 보안 설정**을 변경하려면 HA 관리자 권한이 필요합니다.
-- **Wi-Fi 켜기·끄기와 채널 변경, EasyMesh 모드·백홀·밀집 제어·RSSI·스티어링, 공유기 재부팅·예약 재부팅, 연결 유지·WAN 재연결**에도 같은 권한 검사를 적용했습니다.
-- 일반 사용자는 상태·재실 조회와 Night LED 제어를 계속 사용할 수 있습니다. 제한된 제어를 대시보드나 액션으로 실행하면 권한 오류가 표시됩니다.
-- 사용자 정보가 없는 내부 자동화 호출은 허용합니다. 일반 사용자 정보가 전달되는 자동화·스크립트 호출은 제한된 제어에서 차단됩니다.
+* **Restricted key actions and entities that modify router settings to Home Assistant admins only.** Here, "admin" refers to a Home Assistant administrator user.
+* **Applied admin permission checks to six actions for adding, updating, and deleting port forwarding rules and DHCP reservations.** Read/lookup actions remain available as before.
+* **Home Assistant admin permissions are now required to change GeoIP, Access List, attack defense, global port forwarding enable, UPnP / UPnP Relay, WireGuard, and DNS security settings.**
+* **The same permission checks now apply to turning Wi-Fi on/off and changing channels, EasyMesh mode / backhaul / density control / RSSI / steering, router reboot / scheduled reboot, and keep-alive / WAN reconnect.**
+* Standard users can continue to view status and presence, and control the Night LED. Running restricted controls from a dashboard or action will show a permission error.
+* Internal automation calls without user context are allowed. Automation or script calls that pass a standard user context are blocked for restricted controls.
 
-### 요구 사항
+### Requirements
 
-- **Home Assistant 2026.1.0 이상**이 필요합니다.
+* **Home Assistant 2026.1.0 or later** is required.
 
-### 수정
+### Fixes
 
-- EasyMesh 숫자·스위치 엔티티의 ID 강제 변경을 제거해 다시 로드하거나 재시작해도 등록된 ID를 유지합니다.
-- 공유기가 로그인을 거절하면 반복 시도를 중단하고 HA 재인증을 요청합니다. 한글·영문 재인증 화면에서 검증한 계정 정보로 기존 통합을 갱신합니다.
-- 통신 오류의 재시도 간격을 15초부터 최대 5분까지 늘립니다. 빈 응답·잘못된 응답만으로 재로그인하지 않으며, 동시 요청의 세션 갱신을 하나로 합칩니다.
-- SSDP 자동 발견 시 제조사 EFM Networks와 InternetGatewayDevice:1 유형을 모두 요구합니다.
-- GeoIP의 Country Allow 선택 시 한국(kr)을 자동으로 추가하던 동작을 제거했습니다. 이미 등록된 국가 목록은 유지합니다.
-
-### 검증 상태
-
-- 오프라인 테스트 56개와 앞선 수정 커밋의 HACS Validation·hassfest를 통과했습니다.
-- 실제 HA·공유기의 관리자/일반 사용자 제어, 비밀번호 변경 후 재인증, 자동화 동작과 재시작 후 엔티티 ID 유지는 실환경 테스트가 필요합니다.
+* Removed forced entity ID changes for EasyMesh number and switch entities so registered IDs are preserved across reloads and restarts.
+* Stopped retry loops when the router rejects login and requested Home Assistant re-authentication instead. Updates the existing integration with credentials verified on the Korean or English re-authentication screen.
+* Increased the retry backoff interval for communication errors from 15 seconds up to a maximum of 5 minutes. Avoids re-logging in solely on empty or malformed responses, and coalesces concurrent session refreshes into a single request.
+* Requires both manufacturer `EFM Networks` and device type `InternetGatewayDevice:1` during SSDP discovery.
+* Removed automatic addition of South Korea (`kr`) when selecting GeoIP Country Allow. Existing registered country lists are preserved.
 
 ## [1.1.1] - 2026-11-12
 
