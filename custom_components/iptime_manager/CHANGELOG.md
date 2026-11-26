@@ -5,7 +5,7 @@
 ### Breaking Changes — Home Assistant Admin Permissions
 
 * **Restricted key actions and entities that modify router settings to Home Assistant admins only.** Here, "admin" refers to a Home Assistant administrator user.
-* **Applied admin permission checks to six actions for adding, updating, and deleting port forwarding rules and DHCP reservations.** Read/lookup actions remain available as before.
+* **Home Assistant admin permissions are required to list, add, update, or delete DHCP reservations and port forwarding rules.** This includes both lookup actions, `iptime_manager.get_dhcp_reservations` and `iptime_manager.get_port_forward_rules`. Their response formats are unchanged.
 * **Home Assistant admin permissions are now required to change GeoIP, Access List, attack defense, global port forwarding enable, UPnP / UPnP Relay, WireGuard, and DNS security settings.**
 * **The same permission checks now apply to turning Wi-Fi on/off and changing channels, EasyMesh mode / backhaul / density control / RSSI / steering, router reboot / scheduled reboot, and keep-alive / WAN reconnect.**
 * Standard users can continue to view status and presence, and control the Night LED. Running restricted controls from a dashboard or action will show a permission error.
