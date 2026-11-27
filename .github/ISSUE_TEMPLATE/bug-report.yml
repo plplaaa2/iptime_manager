@@ -1,53 +1,53 @@
-name: "버그 제보"
-description: "연결 오류, 잘못된 상태 표시, 제어 실패 등을 제보합니다."
+name: "Bug report"
+description: "Report connection errors, incorrect states, or failed controls."
 body:
   - type: input
     id: router-model
     attributes:
-      label: "공유기 모델"
-      description: "예: AX3000Q"
+      label: "Router model"
+      description: "Example: AX3000Q"
     validations:
       required: true
   - type: input
     id: firmware-version
     attributes:
-      label: "공유기 펌웨어 버전"
+      label: "Router firmware version"
     validations:
       required: true
   - type: input
     id: integration-version
     attributes:
-      label: "ipTIME Manager 버전"
+      label: "ipTIME Manager version"
     validations:
       required: true
   - type: input
     id: home-assistant-version
     attributes:
-      label: "Home Assistant Core 버전"
+      label: "Home Assistant Core version"
     validations:
       required: true
   - type: input
     id: router-setup
     attributes:
-      label: "공유기 구성"
-      description: "예: 단독 공유기, EasyMesh 컨트롤러 또는 에이전트"
+      label: "Router setup"
+      description: "Example: standalone router, EasyMesh controller, or EasyMesh agent"
   - type: textarea
     id: behavior
     attributes:
-      label: "증상과 기대 동작"
-      description: "문제가 발생한 기능이나 엔티티, 실제 동작과 기대한 동작을 적어 주세요."
+      label: "Actual and expected behavior"
+      description: "Which feature or entity is affected? Describe what happened and what you expected."
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: "재현 방법"
-      description: "어떤 순서로 조작했는지 적어 주세요. 간헐적이면 발생 조건이나 빈도를 알려 주세요."
+      label: "Steps to reproduce"
+      description: "List the steps you took. If the issue is intermittent, describe when or how often it occurs."
     validations:
       required: true
   - type: textarea
     id: logs
     attributes:
-      label: "Home Assistant 로그"
-      description: "관련 오류만 붙여 주세요. 계정, 비밀번호, 토큰, IP·MAC 주소 등은 가려 주세요."
+      label: "Home Assistant logs"
+      description: "Include only relevant log entries. Redact usernames, passwords, tokens, IP addresses, and MAC addresses."
       render: text
