@@ -1,0 +1,27 @@
+name: "기능 제안"
+description: "새 기능, 공유기 모델 지원 또는 기존 기능 개선을 제안합니다."
+body:
+  - type: textarea
+    id: use-case
+    attributes:
+      label: "어떤 상황에서 필요한가요?"
+      description: "현재 불편한 점이나 만들고 싶은 Home Assistant 자동화를 설명해 주세요."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "원하는 기능이나 동작"
+      description: "Home Assistant에서 어떤 값을 확인하거나 어떤 설정을 제어하고 싶은지 적어 주세요."
+    validations:
+      required: true
+  - type: input
+    id: router
+    attributes:
+      label: "공유기 모델과 펌웨어 버전"
+      description: "모델 지원이나 공유기별 기능에 관한 요청이라면 적어 주세요."
+  - type: textarea
+    id: router-ui
+    attributes:
+      label: "공유기 관리 화면의 메뉴 또는 참고 자료"
+      description: "해당 기능의 메뉴 경로를 적거나 스크린샷을 첨부해 주세요. 계정, 비밀번호, IP·MAC 주소 등은 가려 주세요."
