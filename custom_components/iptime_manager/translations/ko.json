@@ -181,107 +181,63 @@
       }
     }
   },
+  "common": {
+    "notification_firmware_update_title": "새 펌웨어 업데이트 사용 가능",
+    "notification_firmware_update_message": "ipTIME 공유기({url})의 새 펌웨어를 사용할 수 있습니다.\n\n* **현재 버전:** `{current_version}`\n* **최신 버전:** `{latest_version}`",
+    "notification_wan_port_disconnect_title": "WAN 포트 연결 끊김",
+    "notification_wan_port_disconnect_message": "ipTIME 공유기({url})의 WAN 케이블이 분리되었거나 모뎀 연결이 끊겼습니다.",
+    "notification_wan_port_connect_title": "WAN 포트 연결 복구",
+    "notification_wan_port_connect_message": "ipTIME 공유기({url})의 WAN 포트가 다시 연결되었습니다.",
+    "notification_wan_ip_disconnect_title": "인터넷 연결 끊김",
+    "notification_wan_ip_disconnect_message": "ipTIME 공유기({url})가 공인 IP 주소를 받지 못해 인터넷 연결이 끊겼습니다.",
+    "notification_wan_ip_connect_title": "인터넷 연결 복구",
+    "notification_wan_ip_connect_message": "ipTIME 공유기({url})가 공인 IP 주소(**{ip}**)를 받아 인터넷 연결이 복구되었습니다.",
+    "notification_wan_ip_change_title": "공인 IP 주소 변경",
+    "notification_wan_ip_change_message": "ipTIME 공유기({url})의 공인 IP 주소가 변경되었습니다.\n\n* **이전 IP 주소:** `{old_ip}`\n* **새 IP 주소:** `{new_ip}`",
+    "notification_geoip_off_title": "GeoIP 기능 비활성화 경고",
+    "notification_geoip_off_message": "ipTIME 공유기({url})의 GeoIP 해외 IP 차단 기능이 꺼졌습니다. 이전에 차단된 지역의 트래픽이 공유기에 도달할 수 있습니다.",
+    "notification_portforward_on_title": "포트 포워딩 활성화",
+    "notification_portforward_on_message": "ipTIME 공유기({url})의 포트 포워딩 기능이 켜졌습니다. 활성화된 규칙에 따라 인터넷에서 내부 서비스에 접속할 수 있습니다.",
+    "notification_portforward_off_title": "포트 포워딩 비활성화",
+    "notification_portforward_off_message": "ipTIME 공유기({url})의 포트 포워딩 기능이 꺼졌습니다. 설정된 규칙을 통한 외부 접속이 중단됩니다.",
+    "notification_wifi_off_title": "Wi-Fi 네트워크 비활성화 경고 ({ssid})",
+    "notification_wifi_off_message": "ipTIME 공유기({url})의 무선 네트워크 **{ssid}**({band} 대역)가 꺼졌습니다. 이 무선망에 연결된 기기의 연결이 끊길 수 있습니다.",
+    "notification_acl_on_title": "원격 웹 관리(접근 목록) 활성화 경고",
+    "notification_acl_on_message": "ipTIME 공유기({url})의 외부 원격 웹 관리(접근 목록) 포트가 열렸습니다. 접근 목록에 허용된 호스트가 외부에서 관리 페이지에 접속할 수 있습니다.",
+    "notification_acl_off_title": "원격 웹 관리(접근 목록) 종료",
+    "notification_acl_off_message": "ipTIME 공유기({url})의 외부 원격 웹 관리 포트가 닫혔습니다. 이 포트를 통한 원격 접속이 중단됩니다.",
+    "notification_csrf_disabled_danger_title": "🔴 CSRF 방지 비활성화 경고 (원격 웹 관리 활성 상태)",
+    "notification_csrf_disabled_danger_message": "**[심각한 보안 위험]** ipTIME 공유기({url})에서 원격 웹 관리가 켜진 상태로 **CSRF 방지 기능이 꺼졌습니다**.",
+    "notification_csrf_security_on_title": "CSRF 방지 활성화",
+    "notification_csrf_security_on_message": "ipTIME 공유기({url})의 사이트 간 요청 위조(CSRF) 방지 기능이 켜졌습니다.",
+    "notification_security_csrf_off_name": "CSRF 방지",
+    "notification_security_csrf_off_description": "사이트 간 요청 위조 공격을 차단합니다.",
+    "notification_security_csrf_off_danger": "위조된 웹사이트에 접속하면 공유기 설정이 무단으로 변경될 수 있습니다.",
+    "notification_security_arp_virus_off_name": "ARP 바이러스 차단",
+    "notification_security_arp_virus_off_description": "ARP 스푸핑을 탐지하고 차단합니다.",
+    "notification_security_arp_virus_off_danger": "중요한 네트워크 패킷이 가로채질 수 있습니다.",
+    "notification_security_syn_flood_off_name": "SYN 플러드 차단",
+    "notification_security_syn_flood_off_description": "TCP SYN 플러드 공격을 방어합니다.",
+    "notification_security_syn_flood_off_danger": "과도한 트래픽으로 공유기 처리 용량이 초과될 수 있습니다.",
+    "notification_security_smurf_off_name": "Smurf DDoS 차단",
+    "notification_security_smurf_off_description": "Smurf 분산 서비스 거부 공격을 방지합니다.",
+    "notification_security_smurf_off_danger": "침해된 로컬 기기로 인해 공유기가 응답하지 않을 수 있습니다.",
+    "notification_security_ip_source_routing_off_name": "IP 소스 라우팅 차단",
+    "notification_security_ip_source_routing_off_description": "패킷이 전달 경로를 지정하는 것을 차단합니다.",
+    "notification_security_ip_source_routing_off_danger": "공격자가 방화벽을 우회할 수 있습니다.",
+    "notification_security_ip_spoofing_off_name": "IP 스푸핑 차단",
+    "notification_security_ip_spoofing_off_description": "출발지 IP 주소가 위조된 패킷을 차단합니다.",
+    "notification_security_ip_spoofing_off_danger": "공격자가 신뢰할 수 있는 로컬 IP 주소를 사칭할 수 있습니다.",
+    "notification_security_inbound_ping_off_name": "외부에서 들어오는 핑 차단",
+    "notification_security_inbound_ping_off_description": "외부에서 들어오는 ICMP 핑 요청을 차단합니다.",
+    "notification_security_inbound_ping_off_danger": "외부에서 공유기의 접속 상태를 확인할 수 있습니다.",
+    "notification_security_outbound_ping_off_name": "외부로 나가는 핑 차단",
+    "notification_security_outbound_ping_off_description": "외부로 나가는 ICMP 핑 요청을 제한합니다.",
+    "notification_security_outbound_ping_off_danger": "악성 로컬 코드가 외부 명령 서버에 연결할 수 있습니다.",
+    "notification_security_disabled_title": "⚠️ 보안 기능 비활성화 경고: {name}",
+    "notification_security_disabled_message": "ipTIME 공유기({url})의 보안 기능 **{name}**이 꺼졌습니다.\n\n**기능 설명**\n{description}\n\n**비활성화 시 위험**\n{danger}\n\n의도한 변경이 아니라면 공유기 설정에서 이 기능을 다시 켜세요."
+  },
   "config": {
-    "notifications": {
-      "firmware_update": {
-        "title": "새 펌웨어 업데이트 사용 가능",
-        "message": "ipTIME 공유기({url})의 새 펌웨어를 사용할 수 있습니다.\n\n* **현재 버전:** `{current_version}`\n* **최신 버전:** `{latest_version}`"
-      },
-      "wan_port_disconnect": {
-        "title": "WAN 포트 연결 끊김",
-        "message": "ipTIME 공유기({url})의 WAN 케이블이 분리되었거나 모뎀 연결이 끊겼습니다."
-      },
-      "wan_port_connect": {
-        "title": "WAN 포트 연결 복구",
-        "message": "ipTIME 공유기({url})의 WAN 포트가 다시 연결되었습니다."
-      },
-      "wan_ip_disconnect": {
-        "title": "인터넷 연결 끊김",
-        "message": "ipTIME 공유기({url})가 공인 IP 주소를 받지 못해 인터넷 연결이 끊겼습니다."
-      },
-      "wan_ip_connect": {
-        "title": "인터넷 연결 복구",
-        "message": "ipTIME 공유기({url})가 공인 IP 주소(**{ip}**)를 받아 인터넷 연결이 복구되었습니다."
-      },
-      "wan_ip_change": {
-        "title": "공인 IP 주소 변경",
-        "message": "ipTIME 공유기({url})의 공인 IP 주소가 변경되었습니다.\n\n* **이전 IP 주소:** `{old_ip}`\n* **새 IP 주소:** `{new_ip}`"
-      },
-      "geoip_off": {
-        "title": "GeoIP 기능 비활성화 경고",
-        "message": "ipTIME 공유기({url})의 GeoIP 해외 IP 차단 기능이 꺼졌습니다."
-      },
-      "portforward_on": {
-        "title": "포트 포워딩 활성화",
-        "message": "ipTIME 공유기({url})의 포트 포워딩 기능이 켜졌습니다."
-      },
-      "portforward_off": {
-        "title": "포트 포워딩 비활성화",
-        "message": "ipTIME 공유기({url})의 포트 포워딩 기능이 꺼졌습니다."
-      },
-      "wifi_off": {
-        "title": "Wi-Fi 네트워크 비활성화 경고 ({ssid})",
-        "message": "ipTIME 공유기({url})의 무선 네트워크 **{ssid}**({band} 대역)가 꺼졌습니다."
-      },
-      "acl_on": {
-        "title": "원격 웹 관리(접근 목록) 활성화 경고",
-        "message": "ipTIME 공유기({url})의 외부 원격 웹 관리(접근 목록) 포트가 열렸습니다."
-      },
-      "acl_off": {
-        "title": "원격 웹 관리(접근 목록) 종료",
-        "message": "ipTIME 공유기({url})의 외부 원격 웹 관리 포트가 닫혔습니다."
-      },
-      "csrf_disabled_danger": {
-        "title": "🔴 CSRF 방지 비활성화 경고 (원격 웹 관리 활성 상태)",
-        "message": "**[심각한 보안 위험]** ipTIME 공유기({url})에서 원격 웹 관리가 켜진 상태로 **CSRF 방지 기능이 꺼졌습니다**."
-      },
-      "csrf_security_on": {
-        "title": "CSRF 방지 활성화",
-        "message": "ipTIME 공유기({url})의 사이트 간 요청 위조(CSRF) 방지 기능이 켜졌습니다."
-      },
-      "security_csrf_off": {
-        "name": "CSRF 방지",
-        "description": "사이트 간 요청 위조 공격을 차단합니다.",
-        "danger": "위조된 웹사이트에 접속하면 공유기 설정이 무단으로 변경될 수 있습니다."
-      },
-      "security_arp_virus_off": {
-        "name": "ARP 바이러스 차단",
-        "description": "ARP 스푸핑을 탐지하고 차단합니다.",
-        "danger": "중요한 네트워크 패킷이 가로채질 수 있습니다."
-      },
-      "security_syn_flood_off": {
-        "name": "SYN 플러드 차단",
-        "description": "TCP SYN 플러드 공격을 방어합니다.",
-        "danger": "과도한 트래픽으로 공유기 처리 용량이 초과될 수 있습니다."
-      },
-      "security_smurf_off": {
-        "name": "Smurf DDoS 차단",
-        "description": "Smurf 분산 서비스 거부 공격을 방지합니다.",
-        "danger": "침해된 로컬 기기로 인해 공유기가 응답하지 않을 수 있습니다."
-      },
-      "security_ip_source_routing_off": {
-        "name": "IP 소스 라우팅 차단",
-        "description": "패킷이 전달 경로를 지정하는 것을 차단합니다.",
-        "danger": "공격자가 방화벽을 우회할 수 있습니다."
-      },
-      "security_ip_spoofing_off": {
-        "name": "IP 스푸핑 차단",
-        "description": "출발지 IP 주소가 위조된 패킷을 차단합니다.",
-        "danger": "공격자가 신뢰할 수 있는 로컬 IP 주소를 사칭할 수 있습니다."
-      },
-      "security_inbound_ping_off": {
-        "name": "외부에서 들어오는 핑 차단",
-        "description": "외부에서 들어오는 ICMP 핑 요청을 차단합니다.",
-        "danger": "외부에서 공유기의 접속 상태를 확인할 수 있습니다."
-      },
-      "security_outbound_ping_off": {
-        "name": "외부로 나가는 핑 차단",
-        "description": "외부로 나가는 ICMP 핑 요청을 제한합니다.",
-        "danger": "악성 로컬 코드가 외부 명령 서버에 연결할 수 있습니다."
-      },
-      "security_disabled_title": "⚠️ 보안 기능 비활성화 경고: {name}",
-      "security_disabled_message": "ipTIME 공유기({url})의 보안 기능 **{name}**이 꺼졌습니다."
-    },
     "error": {
       "cannot_connect": "공유기에 연결할 수 없습니다. URL을 확인해 주세요.",
       "invalid_auth": "아이디 또는 비밀번호가 올바르지 않습니다.",
