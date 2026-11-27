@@ -48,6 +48,10 @@ When adding a router, use its management address, for example `http://192.168.0.
 
 ## Reading status
 
+### Persistent notifications
+
+New ipTIME Manager notifications follow the Home Assistant system language. Korean uses Korean text, and English is the default for other or unset languages. Security alerts explain what changed, its impact, and what to check if the change was unexpected.
+
 ### Port forwarding actions
 
 Beta UI routers provide `iptime_manager.get_port_forward_rules`, `add_port_forward_rule`,

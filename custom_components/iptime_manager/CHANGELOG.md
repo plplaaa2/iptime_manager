@@ -9,6 +9,7 @@
 ### Fixes
 
 * Display ipTIME persistent notifications in Korean or English according to the Home Assistant system language. Use English for other languages.
+* Move notification strings to the Home Assistant `common` translation category. Restore feature descriptions, risks, and recovery guidance in security-disabled alerts, and clarify the impact of GeoIP, port forwarding, Wi-Fi, and remote web management changes. ([#12](https://github.com/plplaaa2/iptime_manager/issues/12))
 
 ## [1.1.2] - 2026-11-25
 
