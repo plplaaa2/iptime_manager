@@ -1,0 +1,53 @@
+name: "Bug report"
+description: "Report connection errors, incorrect states, or failed controls."
+body:
+  - type: input
+    id: router-model
+    attributes:
+      label: "Router model"
+      description: "Example: AX3000Q"
+    validations:
+      required: true
+  - type: input
+    id: firmware-version
+    attributes:
+      label: "Router firmware version"
+    validations:
+      required: true
+  - type: input
+    id: integration-version
+    attributes:
+      label: "ipTIME Manager version"
+    validations:
+      required: true
+  - type: input
+    id: home-assistant-version
+    attributes:
+      label: "Home Assistant Core version"
+    validations:
+      required: true
+  - type: input
+    id: router-setup
+    attributes:
+      label: "Router setup"
+      description: "Example: standalone router, EasyMesh controller, or EasyMesh agent"
+  - type: textarea
+    id: behavior
+    attributes:
+      label: "Actual and expected behavior"
+      description: "Which feature or entity is affected? Describe what happened and what you expected."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to reproduce"
+      description: "List the steps you took. If the issue is intermittent, describe when or how often it occurs."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Home Assistant logs"
+      description: "Include only relevant log entries. Redact usernames, passwords, tokens, IP addresses, and MAC addresses."
+      render: text

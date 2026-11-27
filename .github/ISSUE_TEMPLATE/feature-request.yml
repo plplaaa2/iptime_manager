@@ -1,0 +1,27 @@
+name: "Feature request"
+description: "Suggest a new feature, support for a router model, or an improvement."
+body:
+  - type: textarea
+    id: use-case
+    attributes:
+      label: "Use case"
+      description: "Describe the problem you want to solve or the Home Assistant automation you want to build."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Requested behavior"
+      description: "Describe what you want to monitor or control in Home Assistant."
+    validations:
+      required: true
+  - type: input
+    id: router
+    attributes:
+      label: "Router model and firmware version"
+      description: "Include these details if your request is specific to a router model or feature."
+  - type: textarea
+    id: router-ui
+    attributes:
+      label: "Router admin interface or references"
+      description: "Provide the menu path or attach a screenshot. Redact usernames, passwords, IP addresses, and MAC addresses."
