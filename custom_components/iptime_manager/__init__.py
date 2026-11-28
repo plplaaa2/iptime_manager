@@ -1,6 +1,7 @@
 import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 from .const import (
     DOMAIN,
     CONF_URL,
@@ -22,6 +23,10 @@ from . import device_tracker, sensor, button, binary_sensor, switch, select, num
 # 연결될 파일: api.py, coordinator.py, const.py, sensor.py, device_tracker.py, button.py
 
 _LOGGER = logging.getLogger(__name__)
+
+# Summary: Declare UI-only configuration while retaining action registration at setup.
+# Related files: config_flow.py, services.py, manifest.json.
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 # Summary: Register actions even when no router configuration is loaded.
 # Related files: services.py, services.yaml, dhcp.py.
