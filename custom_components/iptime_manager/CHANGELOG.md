@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.1.4] - 2026-11-28
 
 ### Fixes
 
@@ -9,6 +9,13 @@
 - Preserve the existing remote-management port and Wi-Fi radio enable state when changing access or channels.
 - Refuse DHCP updates that cannot preserve an unknown reservation description, and reject invalid select options.
 - Serialize configuration read/modify/write operations and show unknown values when settings were not reported.
+- Remove the duplicate brand logo and declare the config-entry-only configuration schema to resolve HACS validation warnings.
+
+Related issue [#17](https://github.com/plplaaa2/iptime_manager/issues/17).
+
+### Validation
+
+- Offline tests and HACS validation passed. Live Home Assistant and router verification is pending.
 
 ## [1.1.3] - 2026-11-26
 
