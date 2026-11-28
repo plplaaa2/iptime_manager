@@ -1,4 +1,4 @@
-Project layout (updated 2026-11-25).
+Project layout (updated 2026-11-28).
 The integration is distributed from custom_components/iptime_manager.
 changelog.jsonl, changelog_1.jsonl and caution.jsonl are local development records excluded from Git.
 Credential files are intentionally omitted from this listing.
@@ -53,7 +53,6 @@ iptime_manager (root)
         |   
         +---brand
         |       icon.png
-        |       logo.png
         |       
         \---translations
                 en.json
