@@ -21,12 +21,17 @@ class ConfigEntryAuthFailed(Exception):
     pass
 
 
+class HomeAssistantError(Exception):
+    pass
+
+
 # Summary: Run production API code with HTTP and HA dependencies isolated.
 # Related files: custom_components/iptime_manager/api.py, config_flow.py, coordinator.py.
 def load_api():
     namespace = {
         "__name__": "offline_api",
         "ConfigEntryAuthFailed": ConfigEntryAuthFailed,
+        "HomeAssistantError": HomeAssistantError,
         "DHCPReservations": lambda api: S(),
         "PortForwardRules": lambda api: S(),
     }

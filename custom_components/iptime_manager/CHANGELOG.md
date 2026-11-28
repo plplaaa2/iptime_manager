@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixes
+
+- Preserve router-reported WireGuard address, port and NAT settings when toggling the server.
+- Read and validate current reboot, Night LED, WAN heartbeat, ARP protection and EasyMesh density settings immediately before changes. Refuse writes with missing or invalid retained values.
+- Preserve the existing remote-management port and Wi-Fi radio enable state when changing access or channels.
+- Refuse DHCP updates that cannot preserve an unknown reservation description, and reject invalid select options.
+- Serialize configuration read/modify/write operations and show unknown values when settings were not reported.
+
 ## [1.1.3] - 2026-11-26
 
 ### Breaking Changes — Home Assistant Admin Permissions

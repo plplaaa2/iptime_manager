@@ -48,6 +48,12 @@ class DHCPTests(unittest.IsolatedAsyncioTestCase):
         self.client = module.DHCPReservations(self.router)
         self.mac = "02:11:22:33:44:55"
 
+    async def test_missing_description_cannot_be_silently_cleared(self):
+        self.router.rows = [{"mac": self.mac, "ip": "192.168.0.50"}]
+        with self.assertRaisesRegex(ValueError, "unknown DHCP reservation description"):
+            await self.client.execute("update", self.mac, "192.168.0.51")
+        self.assertFalse(any(method.endswith("/add") for method, _ in self.router.calls))
+
     async def test_crud_and_description_preservation(self):
         self.assertEqual(await self.client.execute("get"), {"reservations": []})
         await self.client.execute("add", self.mac, "192.168.0.50", "device")

@@ -8,6 +8,7 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers import entity_registry as er
 
@@ -49,7 +50,9 @@ def _option_to_policy(option: str) -> tuple[bool, str]:
         "Country Block": (True, "drop"),
         "Country Allow": (True, "accept"),
     }
-    return mapping.get(option, (False, "off"))
+    if option not in mapping:
+        raise HomeAssistantError("Invalid GeoIP policy")
+    return mapping[option]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
@@ -158,80 +161,35 @@ class IPTimeNightLEDSelect(CoordinatorEntity, SelectEntity):
         self._attr_name = f"Night LED Mode ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:led-off"
         self._attr_entity_category = EntityCategory.CONFIG
-        self._last_valid_on = None
-        self._last_valid_off = None
 
     @property
     def current_option(self) -> str | None:
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        led_config = web_data.get("led_config", {})
-        if not isinstance(led_config, dict):
-            led_config = {}
-        mode = led_config.get("mode", "on")
-
-        # ipTIME 나이트 LED API: mode="on"이 LED가 항상 켜진 상태(Disabled), mode="off"가 LED가 항상 꺼진 상태(Always Off), mode="schedule"이 스케줄 작동(Time Scheduled)
-        # 연결될 파일: api.py
-        mapping = {
-            "on": "Disabled",
-            "off": "Always Off",
-            "schedule": "Time Scheduled"
-        }
-        return mapping.get(mode, "Disabled")
+        config = (self.coordinator.data or {}).get("web", {}).get("led_config")
+        if not isinstance(config, dict):
+            return None
+        return {"on": "Disabled", "off": "Always Off", "schedule": "Time Scheduled"}.get(config.get("mode"))
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        led_config = web_data.get("led_config", {})
-        if not isinstance(led_config, dict):
-            led_config = {}
-            
-        on = led_config.get("on")
-        if on is not None:
-            self._last_valid_on = on
-        on_time = self._last_valid_on if self._last_valid_on is not None else 22
-        
-        off = led_config.get("off")
-        if off is not None:
-            self._last_valid_off = off
-        off_time = self._last_valid_off if self._last_valid_off is not None else 8
-
-        return {
-            "mode": led_config.get("mode", "on"),
-            "start_time": f"{on_time:02d}:00",
-            "end_time": f"{off_time:02d}:00",
-            "start_hour": on_time,
-            "end_hour": off_time,
-            "start_minutes": on_time * 60,
-            "end_minutes": off_time * 60,
-        }
+        config = (self.coordinator.data or {}).get("web", {}).get("led_config")
+        config = config if isinstance(config, dict) else {}
+        attributes = {"mode": config.get("mode")}
+        for field, prefix in (("on", "start"), ("off", "end")):
+            hour = config.get(field)
+            if type(hour) is not int or not 0 <= hour <= 23:
+                hour = None
+            attributes[f"{prefix}_time"] = f"{hour:02d}:00" if hour is not None else None
+            attributes[f"{prefix}_hour"] = hour
+            attributes[f"{prefix}_minutes"] = hour * 60 if hour is not None else None
+        return attributes
 
     async def async_select_option(self, option: str) -> None:
-        # ipTIME 나이트 LED API: Disabled -> "on" (LED 항상 켜짐), Always Off -> "off" (LED 항상 꺼짐), Time Scheduled -> "schedule" (스케줄 작동)
-        # 연결될 파일: api.py
-        mapping = {
-            "Disabled": "on",
-            "Always Off": "off",
-            "Time Scheduled": "schedule"
-        }
-        mode = mapping.get(option, "on")
-
-        # 기존 시간 값을 유지하거나 기본값(22:00 ~ 08:00)을 사용
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        led_config = web_data.get("led_config", {})
-        if not isinstance(led_config, dict):
-            led_config = {}
-            
-        on = led_config.get("on")
-        if on is not None:
-            self._last_valid_on = on
-        on_time = self._last_valid_on if self._last_valid_on is not None else 22
-        
-        off = led_config.get("off")
-        if off is not None:
-            self._last_valid_off = off
-        off_time = self._last_valid_off if self._last_valid_off is not None else 8
-
-        await self.coordinator.api.async_set_web_led_config(mode, on_time, off_time)
+        # Summary: Send only the selected mode; the API freshly reads retained times.
+        # Related files: api.py, tests/test_settings.py.
+        mapping = {"Disabled": "on", "Always Off": "off", "Time Scheduled": "schedule"}
+        if option not in mapping:
+            raise HomeAssistantError("Invalid Night LED mode")
+        await self.coordinator.api.async_set_web_led_config(mapping[option])
         await self.coordinator.async_request_refresh()
 
     @property
@@ -259,38 +217,23 @@ class IPTimeRebootDaySelect(CoordinatorEntity, SelectEntity):
         self._attr_name = f"Auto Reboot Day ({entry.data.get(CONF_URL)})"
         self._attr_icon = "mdi:calendar-week"
         self._attr_entity_category = EntityCategory.CONFIG
-        self._last_valid_hour = None
-        self._last_valid_min = None
-        self._last_valid_days = None
 
     @property
     def current_option(self) -> str | None:
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        timer = web_data.get("reboot_timer", {})
-        
-        d = timer.get("days")
-        if d is not None:
-            self._last_valid_days = d
-        days = self._last_valid_days if self._last_valid_days is not None else ["Fri"]
-
-        if not isinstance(days, list) or not days:
-            return "Friday"
-
-        if len(days) >= 7:
-            return "Everyday"
-
-        day_map = {
-            "mon": "Monday",
-            "tue": "Tuesday",
-            "wed": "Wednesday",
-            "thu": "Thursday",
-            "fri": "Friday",
-            "sat": "Saturday",
-            "sun": "Sunday"
+        timer = (self.coordinator.data or {}).get("web", {}).get("reboot_timer")
+        days = timer.get("days") if isinstance(timer, dict) else None
+        if not isinstance(days, list) or not days or any(not isinstance(day, str) for day in days):
+            return None
+        labels = {
+            "mon": "Monday", "tue": "Tuesday", "wed": "Wednesday",
+            "thu": "Thursday", "fri": "Friday", "sat": "Saturday", "sun": "Sunday",
         }
-
-        first_day = str(days[0]).lower()
-        return day_map.get(first_day, "Friday")
+        normalized = {day.lower() for day in days}
+        if normalized == set(labels):
+            return "Everyday"
+        if len(normalized) == 1:
+            return labels.get(next(iter(normalized)))
+        return None
 
     # Summary: Require an admin before changing the reboot schedule.
     # Related files: admin.py, api.py.
@@ -298,32 +241,12 @@ class IPTimeRebootDaySelect(CoordinatorEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         day_map = {
             "Everyday": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-            "Monday": ["Mon"],
-            "Tuesday": ["Tue"],
-            "Wednesday": ["Wed"],
-            "Thursday": ["Thu"],
-            "Friday": ["Fri"],
-            "Saturday": ["Sat"],
-            "Sunday": ["Sun"]
+            "Monday": ["Mon"], "Tuesday": ["Tue"], "Wednesday": ["Wed"],
+            "Thursday": ["Thu"], "Friday": ["Fri"], "Saturday": ["Sat"], "Sunday": ["Sun"],
         }
-        target_days = day_map.get(option, ["Fri"])
-        self._last_valid_days = target_days
-
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        timer = web_data.get("reboot_timer", {})
-        run = timer.get("run", False)
-        
-        h = timer.get("hour")
-        if h is not None:
-            self._last_valid_hour = h
-        hour = self._last_valid_hour if self._last_valid_hour is not None else 4
-        
-        m = timer.get("min")
-        if m is not None:
-            self._last_valid_min = m
-        min_time = self._last_valid_min if self._last_valid_min is not None else 0
-
-        await self.coordinator.api.async_set_web_reboot_timer(run, hour, min_time, target_days)
+        if option not in day_map:
+            raise HomeAssistantError("Invalid reboot day")
+        await self.coordinator.api.async_set_web_reboot_timer(None, days=day_map[option])
         await self.coordinator.async_request_refresh()
 
     @property
