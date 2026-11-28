@@ -1,11 +1,22 @@
 # Changelog
 
+## [1.1.3] - 2026-11-26
+
+### Breaking Changes — Home Assistant Admin Permissions
+
+* **Home Assistant admin permissions are now required to list DHCP reservations and port forwarding rules.** This applies to `iptime_manager.get_dhcp_reservations` and `iptime_manager.get_port_forward_rules`. Response formats are unchanged. Internal automation calls without a user ID remain allowed.
+
+### Fixes
+
+* Display ipTIME persistent notifications in Korean or English according to the Home Assistant system language. Use English for other languages.
+* Move notification strings to the Home Assistant `common` translation category. Restore feature descriptions, risks, and recovery guidance in security-disabled alerts, and clarify the impact of GeoIP, port forwarding, Wi-Fi, and remote web management changes. ([#12](https://github.com/plplaaa2/iptime_manager/issues/12))
+
 ## [1.1.2] - 2026-11-25
 
 ### Breaking Changes — Home Assistant Admin Permissions
 
 * **Restricted key actions and entities that modify router settings to Home Assistant admins only.** Here, "admin" refers to a Home Assistant administrator user.
-* **Applied admin permission checks to six actions for adding, updating, and deleting port forwarding rules and DHCP reservations.** Read/lookup actions remain available as before.
+* **Applied admin permission checks to six actions for adding, updating, and deleting port forwarding rules and DHCP reservations.** Read/lookup actions remained available to standard users in 1.1.2.
 * **Home Assistant admin permissions are now required to change GeoIP, Access List, attack defense, global port forwarding enable, UPnP / UPnP Relay, WireGuard, and DNS security settings.**
 * **The same permission checks now apply to turning Wi-Fi on/off and changing channels, EasyMesh mode / backhaul / density control / RSSI / steering, router reboot / scheduled reboot, and keep-alive / WAN reconnect.**
 * Standard users can continue to view status and presence, and control the Night LED. Running restricted controls from a dashboard or action will show a permission error.

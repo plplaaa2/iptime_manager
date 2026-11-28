@@ -19,7 +19,7 @@ def validate_port(value):
         raise vol.Invalid(str(err)) from err
 
 
-# Summary: Require admin access for router changes and preserve response-only list retrieval.
+# Summary: Require admin access for router actions and preserve response modes.
 # Related files: __init__.py, dhcp.py, port_forward.py, api.py, services.yaml, translations/*.json.
 def async_register_services(hass):
     async def handle(call):
@@ -50,18 +50,12 @@ def async_register_services(hass):
             fields[vol.Required("ip")] = cv.string
             fields[vol.Optional("description")] = cv.string
         name = "get_dhcp_reservations" if operation == "get" else f"{operation}_dhcp_reservation"
-        if operation == "get":
-            hass.services.async_register(
-                DOMAIN, name, handle, schema=vol.Schema(fields),
-                supports_response=SupportsResponse.ONLY,
-            )
-        else:
-            async_register_admin_service(
-                hass, DOMAIN, name, handle, schema=vol.Schema(fields),
-                supports_response=SupportsResponse.OPTIONAL,
-            )
+        async_register_admin_service(
+            hass, DOMAIN, name, handle, schema=vol.Schema(fields),
+            supports_response=SupportsResponse.ONLY if operation == "get" else SupportsResponse.OPTIONAL,
+        )
 
-    # Summary: Restrict rule changes to admins; optional update fields preserve existing values.
+    # Summary: Restrict rule access to admins; optional update fields preserve existing values.
     # Related files: port_forward.py, services.yaml, translations/*.json.
     for operation in ("get", "add", "update", "delete"):
         fields = {vol.Required("config_entry_id"): cv.string}
@@ -76,13 +70,7 @@ def async_register_services(hass):
         if operation == "update":
             fields[vol.Optional("new_name")] = cv.string
         name = "get_port_forward_rules" if operation == "get" else f"{operation}_port_forward_rule"
-        if operation == "get":
-            hass.services.async_register(
-                DOMAIN, name, handle, schema=vol.Schema(fields),
-                supports_response=SupportsResponse.ONLY,
-            )
-        else:
-            async_register_admin_service(
-                hass, DOMAIN, name, handle, schema=vol.Schema(fields),
-                supports_response=SupportsResponse.OPTIONAL,
-            )
+        async_register_admin_service(
+            hass, DOMAIN, name, handle, schema=vol.Schema(fields),
+            supports_response=SupportsResponse.ONLY if operation == "get" else SupportsResponse.OPTIONAL,
+        )

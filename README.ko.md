@@ -1,7 +1,7 @@
 # Home Assistant용 ipTIME Manager
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.1.2-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.1.3-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 EFM ipTIME 공유기를 로컬 네트워크에서 모니터링하고 제어하는 Home Assistant 통합 구성요소입니다. SNMP 설정 없이 사용할 수 있습니다.
@@ -45,6 +45,10 @@ EFM ipTIME 공유기를 로컬 네트워크에서 모니터링하고 제어하�
 공유기 추가 시 공유기 관리 주소(예: `http://192.168.0.1`)를 사용하세요. 별도 관리 포트를 사용한다면 주소에 포트도 포함합니다.
 
 ## 상태 확인
+
+### 지속 알림
+
+ipTIME Manager의 새 알림은 Home Assistant 시스템 언어를 따릅니다. 한국어 설정에서는 한국어로 표시하며, 다른 언어를 사용하거나 언어를 설정하지 않은 경우 영어로 표시합니다. 보안 알림에는 변경 내용과 영향, 의도하지 않은 변경일 때 확인할 사항이 포함됩니다.
 
 ### 포트 포워딩 액션
 

@@ -3,7 +3,7 @@
 [🇺🇸 English Version](./README.md) | [🇰🇷 한국어 버전](./README.ko.md)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-v1.1.2-blue.svg?style=for-the-badge)
+![version](https://img.shields.io/badge/version-v1.1.3-blue.svg?style=for-the-badge)
 [![kofi](https://img.shields.io/badge/Ko--fi-Support%20Me-F16061?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/plplaaa2)
 
 Home Assistant integration for monitoring and controlling EFM ipTIME routers over your local network. No SNMP setup is required.
@@ -47,6 +47,10 @@ Home Presence can also be created before a router is configured, initially with 
 When adding a router, use its management address, for example `http://192.168.0.1`. Include the port if it uses a custom management port.
 
 ## Reading status
+
+### Persistent notifications
+
+New ipTIME Manager notifications follow the Home Assistant system language. Korean uses Korean text, and English is the default for other or unset languages. Security alerts explain what changed, its impact, and what to check if the change was unexpected.
 
 ### Port forwarding actions
 

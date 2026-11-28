@@ -155,13 +155,13 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                     old_linked = is_wan_linked(old_web)
                     new_linked = is_wan_linked(new_web)
                     
-                    # 로벨/로케일 감지 및 번역 파일 동적 로드
+                    # Load notification strings from translations/en.json and translations/ko.json.
                     lang = "ko" if str(self.hass.config.language or "en").startswith("ko") else "en"
                     try:
                         translations = await async_get_translations(
                             self.hass,
                             lang,
-                            "config",
+                            "common",
                             integrations={DOMAIN}
                         )
                     except Exception as trans_err:
@@ -169,12 +169,12 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                         translations = {}
 
                     def get_notify_string(key: str, default: str) -> str:
-                        full_key = f"component.{DOMAIN}.config.notifications.{key}"
+                        translation_key = key.replace(".", "_")
+                        full_key = f"component.{DOMAIN}.common.notification_{translation_key}"
                         return translations.get(full_key, default)
 
                     def get_security_detail(sec_key: str, field: str, default: str) -> str:
-                        full_key = f"component.{DOMAIN}.config.notifications.security_{sec_key}_off.{field}"
-                        return translations.get(full_key, default)
+                        return get_notify_string(f"security_{sec_key}_off.{field}", default)
 
                     # 케이스 0: 펌웨어 업데이트 감지 알림
                     old_firmware = old_web.get("firmware", {}) if isinstance(old_web, dict) else {}
@@ -720,7 +720,10 @@ class IPTimeDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                                 title = get_notify_string("security_disabled_title", "⚠️ Security Feature Disabled Warning: {name}").format(name=info['name'])
                                 message = get_notify_string(
                                     "security_disabled_message",
-                                    "The security option **{name}** of the ipTIME router ({url}) has been turned Off."
+                                    "The security option **{name}** of the ipTIME router ({url}) has been turned off.\n\n"
+                                    "**What this feature does**\n{description}\n\n"
+                                    "**Risk when disabled**\n{danger}\n\n"
+                                    "If this change was unintended, re-enable the feature in the router settings."
                                 ).format(
                                     url=self.entry.data.get(CONF_URL),
                                     name=info['name'],
