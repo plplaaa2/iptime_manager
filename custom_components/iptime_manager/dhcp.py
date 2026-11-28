@@ -39,7 +39,7 @@ class DHCPReservations:
                 raise ValueError("Invalid DHCP reservation item")
             rows.append({"mac": normalize_mac(row.get("mac", "")),
                          "ip": str(IPv4Address(row.get("ip", ""))),
-                         "description": row.get("desc") or ""})
+                         "description": row.get("desc")})
         return rows
 
     async def execute(self, operation, mac=None, ip=None, description=None):
@@ -76,6 +76,10 @@ class DHCPReservations:
                         raise ValueError("This IP is used by another connected device")
                 if description is None:
                     description = existing["description"] if existing else ""
+                # Summary: Preserve missing descriptions as unknown rather than clearing them.
+                # Related files: services.py, tests/test_dhcp.py.
+                if not isinstance(description, str):
+                    raise ValueError("Cannot preserve an unknown DHCP reservation description")
                 await self.request("dhcpd/reservedaddr/add", {"ntag": "lan", "mac": mac, "ip": ip, "desc": description})
             updated = await self.read()
             current = next((row for row in updated if row["mac"] == mac), None)

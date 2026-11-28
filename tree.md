@@ -15,6 +15,7 @@ iptime_manager (root)
 |   tree.md
 |   tests/test_admin.py (offline entity authorization tests)
 |   tests/test_auth.py (offline login, backoff and reauthentication tests)
+|   tests/test_settings.py (offline router setting preservation and missing-field tests)
 |   tests/test_dhcp.py (offline DHCP contract and conflict tests)
 |   tests/test_port_forward.py (offline port forwarding contract and conflict tests)
 |
@@ -63,7 +64,7 @@ Module responsibilities:
 - dhcp.py: DHCP reservation RPCs, conflict validation, per-router locking and readback verification.
 - port_forward.py: user port forwarding RPCs, UPnP conflict checks, partial updates and readback verification.
 - services.py: router selection and response-capable DHCP and port forwarding action registration.
-- api.py: router API access, serialized login, authentication failure latching, bounded connection backoff, elapsed WireGuard handshake conversion, port packet activity and router-mode detection.
+- api.py: router API access, fresh validated read/modify/write settings, serialized login, authentication failure latching, bounded connection backoff, elapsed WireGuard handshake conversion, port packet activity and router-mode detection.
 - config_flow.py: router setup, credential validation and reauthentication, and presence configuration.
 - coordinator.py: collection scheduling, HA reauthentication and retry integration, conditional Internet probing, mode-change reload and events.
 - binary_sensor.py: physical Port links, packet Status sensors, Internet Status and EasyMesh agent connectivity entities.

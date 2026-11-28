@@ -667,43 +667,34 @@ class IPTimeAutoRebootSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_icon = "mdi:calendar-clock"
 
     @property
-    def is_on(self) -> bool:
+    def is_on(self) -> bool | None:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         timer = web_data.get("reboot_timer", {})
-        return bool(timer.get("run", False))
+        return timer.get("run") if isinstance(timer, dict) and isinstance(timer.get("run"), bool) else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         timer = web_data.get("reboot_timer", {})
+        timer = timer if isinstance(timer, dict) else {}
         return {
-            "reboot_hour": timer.get("hour", 4),
-            "reboot_minute": timer.get("min", 0),
-            "reboot_days": timer.get("days", ["Fri"]),
+            "reboot_hour": timer.get("hour"),
+            "reboot_minute": timer.get("min"),
+            "reboot_days": timer.get("days"),
         }
 
     # Summary: Require an admin before changing router configuration.
     # Related files: admin.py, api.py.
     @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        timer = web_data.get("reboot_timer", {})
-        hour = timer.get("hour", 4)
-        min_time = timer.get("min", 0)
-        days = timer.get("days", ["Fri"])
-        await self.coordinator.api.async_set_web_reboot_timer(True, hour, min_time, days)
+        await self.coordinator.api.async_set_web_reboot_timer(True)
         await self.coordinator.async_request_refresh()
 
     # Summary: Require an admin before changing router configuration.
     # Related files: admin.py, api.py.
     @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        timer = web_data.get("reboot_timer", {})
-        hour = timer.get("hour", 4)
-        min_time = timer.get("min", 0)
-        days = timer.get("days", ["Fri"])
-        await self.coordinator.api.async_set_web_reboot_timer(False, hour, min_time, days)
+        await self.coordinator.api.async_set_web_reboot_timer(False)
         await self.coordinator.async_request_refresh()
 
     @property
@@ -772,37 +763,32 @@ class IPTimeWanReconnectSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_icon = "mdi:connection"
 
     @property
-    def is_on(self) -> bool:
+    def is_on(self) -> bool | None:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         heartbeat = web_data.get("wan_heartbeat", {})
-        return bool(heartbeat.get("run", False))
+        return heartbeat.get("run") if isinstance(heartbeat, dict) and isinstance(heartbeat.get("run"), bool) else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         heartbeat = web_data.get("wan_heartbeat", {})
+        heartbeat = heartbeat if isinstance(heartbeat, dict) else {}
         return {
-            "detect_interval_seconds": heartbeat.get("interval", 3),
+            "detect_interval_seconds": heartbeat.get("interval"),
         }
 
     # Summary: Require an admin before changing router configuration.
     # Related files: admin.py, api.py.
     @require_admin
     async def async_turn_on(self, **kwargs: Any) -> None:
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        heartbeat = web_data.get("wan_heartbeat", {})
-        interval = heartbeat.get("interval", 3)
-        await self.coordinator.api.async_set_web_wan_heartbeat(True, interval)
+        await self.coordinator.api.async_set_web_wan_heartbeat(True)
         await self.coordinator.async_request_refresh()
 
     # Summary: Require an admin before changing router configuration.
     # Related files: admin.py, api.py.
     @require_admin
     async def async_turn_off(self, **kwargs: Any) -> None:
-        web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
-        heartbeat = web_data.get("wan_heartbeat", {})
-        interval = heartbeat.get("interval", 3)
-        await self.coordinator.api.async_set_web_wan_heartbeat(False, interval)
+        await self.coordinator.api.async_set_web_wan_heartbeat(False)
         await self.coordinator.async_request_refresh()
 
     @property
@@ -829,20 +815,21 @@ class IPTimeWireGuardServerSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_icon = "mdi:shield-key"
 
     @property
-    def is_on(self) -> bool:
+    def is_on(self) -> bool | None:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         wg_server = web_data.get("wg_server", {})
-        return wg_server.get("run") is True or wg_server.get("enable") is True
+        value = wg_server.get("run", wg_server.get("enable"))
+        return value if isinstance(value, bool) else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         web_data = self.coordinator.data.get("web", {}) if self.coordinator.data else {}
         wg_server = web_data.get("wg_server", {})
         return {
-            "ip": wg_server.get("ip", "10.0.21.1"),
-            "subnet": wg_server.get("subnet", "24"),
-            "port": wg_server.get("port", 53344),
-            "nat": wg_server.get("nat", True),
+            "ip": wg_server.get("ip"),
+            "subnet": wg_server.get("subnet"),
+            "port": wg_server.get("port"),
+            "nat": wg_server.get("nat"),
             "pubkey": wg_server.get("pubkey"),
         }
 

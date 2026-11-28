@@ -9,7 +9,8 @@ import aiohttp
 from typing import Any, Dict, List, Optional, Final
 from json import loads
 from datetime import datetime, timedelta, timezone
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from ipaddress import ip_interface
 from .const import *
 from .dhcp import DHCPReservations
 from .port_forward import PortForwardRules
@@ -33,6 +34,38 @@ def _session_error(response: dict[str, Any]) -> bool:
         return False
     message = str(error.get("message", "")).lower()
     return any(word in message for word in ("session", "login", "auth"))
+
+
+# Summary: Reject missing or malformed retained settings before constructing a write.
+# Related files: select.py, switch.py, tests/test_settings.py.
+def _setting_int(config: dict, key: str, minimum: int, maximum: int | None = None) -> int:
+    value = config.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, str)) or not re.fullmatch(r"-?\d+", str(value)):
+        raise HomeAssistantError(f"Router setting '{key}' is missing or invalid; refresh the router configuration")
+    try:
+        number = int(value)
+    except ValueError as err:
+        raise HomeAssistantError(f"Router setting '{key}' is not a usable integer") from err
+    if number < minimum or (maximum is not None and number > maximum):
+        raise HomeAssistantError(f"Router setting '{key}' is outside its supported range")
+    return number
+
+
+def _setting_bool(config: dict, key: str) -> bool:
+    value = config.get(key)
+    if not isinstance(value, bool):
+        raise HomeAssistantError(f"Router setting '{key}' is missing or invalid; refresh the router configuration")
+    return value
+
+
+def _setting_days(config: dict) -> list[str]:
+    value = config.get("days")
+    if not isinstance(value, list) or any(
+        not isinstance(day, str) or day.lower() not in ("sun", "mon", "tue", "wed", "thu", "fri", "sat")
+        for day in value
+    ):
+        raise HomeAssistantError("Router reboot days are missing or invalid; refresh the router configuration")
+    return list(value)
 
 
 # Summary: Normalize the router's EasyMesh mode for role-specific entity and API gates.
@@ -262,6 +295,7 @@ class IPTimeAPI:
         self.result: Dict[str, Any] = {}
         self.web_result: Dict[str, Any] = {}
         self._dns_security_lock = asyncio.Lock()
+        self._settings_lock = asyncio.Lock()
         self._latest_firmware_version: Any = None
         self._last_caching_time = 0.0
         self._cached_model = None
@@ -683,11 +717,10 @@ class IPTimeAPI:
                     # Related files: sensor.py.
                     last_peer_name, last_handshake_at = _latest_wireguard_handshake(peers, observed_at)
                     self.web_result["wg_server"] = {
-                        "run": bool(wg_data.get("active", False)),
-                        "ip": wg_data.get("address", "10.0.21.1"),
-                        "subnet": "24",
-                        "port": int(wg_data.get("port", 53344)),
-                        "nat": bool(wg_data.get("nat", True)),
+                        "run": wg_data.get("active"),
+                        "ip": wg_data.get("address"),
+                        "port": wg_data.get("port"),
+                        "nat": wg_data.get("nat"),
                         "peer_count": peer_count,
                         "last_peer_name": last_peer_name,
                         "last_handshake_at": last_handshake_at,
@@ -770,27 +803,50 @@ class IPTimeAPI:
             _LOGGER.debug(f"웹 데이터 수집 실패: {err}")
             return False
 
+    # Summary: Read retained values immediately before a settings write; never use cached defaults.
+    # Related files: select.py, switch.py, tests/test_settings.py.
+    async def _async_read_setting(self, method: str, result_type: type = dict):
+        try:
+            response = await self._async_service_json(method)
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise HomeAssistantError("Cannot read the current router settings; no change was sent") from err
+        result = response.get("result")
+        if response.get("error") is not None or not isinstance(result, result_type):
+            raise HomeAssistantError("Cannot read the current router settings; no change was sent")
+        return result
+
+    async def _async_write_setting(self, method: str, params: dict) -> bool:
+        response = await self._async_service_json(method, params)
+        if not response or response.get("error") is not None or response.get("result") is None:
+            raise HomeAssistantError("The router rejected the setting change")
+        self._last_caching_time = 0.0
+        return True
+
     # Summary: Apply EasyMesh global settings while limiting advanced fields to controller mode.
     # Related files: switch.py, number.py.
     async def _async_set_easymesh_global(self, values: Dict[str, Any]) -> bool:
-        """Update supported EasyMesh controller settings without touching other fields."""
+        """Retain nested mesh settings from a fresh router response."""
         role = get_easymesh_role(self.web_result)
         if not is_easymesh_controller(self.web_result) and not (
             set(values) == {"enable"} and role == "alone"
         ):
             return False
-        mesh = self.web_result.get("easymesh", {})
-        config = mesh.get("config", {}) if isinstance(mesh, dict) else {}
-        global_config = config.get("global", {}) if isinstance(config, dict) else {}
-        if not isinstance(global_config, dict) or any(key not in global_config for key in values):
-            return False
-
-        response = await self._async_service_json("easymesh/config", {"global": values})
-        if response.get("error") or not response:
-            _LOGGER.warning("EasyMesh 고급 설정 변경 요청이 실패했습니다.")
-            return False
-        self._last_caching_time = 0.0
-        return True
+        async with self._settings_lock:
+            config = await self._async_read_setting("easymesh/config")
+            current = config.get("global")
+            if not isinstance(current, dict) or any(key not in current for key in values):
+                raise HomeAssistantError("Required EasyMesh settings are missing; no change was sent")
+            updates = dict(values)
+            if "density_control" in updates:
+                density = current.get("density_control")
+                if not isinstance(density, dict):
+                    raise HomeAssistantError("EasyMesh density settings are missing")
+                density = {**density, **updates["density_control"]}
+                updates["density_control"] = {
+                    "enable": _setting_bool(density, "enable"),
+                    "rssi": _setting_int(density, "rssi", -100, -40),
+                }
+            return await self._async_write_setting("easymesh/config", {"global": updates})
 
     async def async_set_easymesh_enabled(self, enabled: bool) -> bool:
         """Toggle EasyMesh mode through the controller setup page's global enable flag."""
@@ -800,34 +856,13 @@ class IPTimeAPI:
         return await self._async_set_easymesh_global({"bh_wired_lock": bool(enabled)})
 
     async def async_set_easymesh_density_control(self, enabled: bool) -> bool:
-        mesh = self.web_result.get("easymesh", {})
-        config = mesh.get("config", {}) if isinstance(mesh, dict) else {}
-        global_config = config.get("global", {}) if isinstance(config, dict) else {}
-        density = global_config.get("density_control") if isinstance(global_config, dict) else None
-        if not isinstance(density, dict):
-            return False
         return await self._async_set_easymesh_global({
-            "density_control": {
-                "enable": bool(enabled),
-                "rssi": int(density.get("rssi", -75)),
-            }
+            "density_control": {"enable": bool(enabled)}
         })
 
     async def async_set_easymesh_density_rssi(self, rssi: int) -> bool:
-        if not -100 <= int(rssi) <= -40:
-            return False
-        mesh = self.web_result.get("easymesh", {})
-        config = mesh.get("config", {}) if isinstance(mesh, dict) else {}
-        global_config = config.get("global", {}) if isinstance(config, dict) else {}
-        density = global_config.get("density_control") if isinstance(global_config, dict) else None
-        if not isinstance(density, dict):
-            return False
-        return await self._async_set_easymesh_global({
-            "density_control": {
-                "enable": bool(density.get("enable", False)),
-                "rssi": int(rssi),
-            }
-        })
+        rssi = _setting_int({"rssi": rssi}, "rssi", -100, -40)
+        return await self._async_set_easymesh_global({"density_control": {"rssi": rssi}})
 
     async def async_set_easymesh_steering_level(self, level: int) -> bool:
         if not 1 <= int(level) <= 10:
@@ -891,72 +926,64 @@ class IPTimeAPI:
         self._last_caching_time = 0.0 # 캐시 강제 만료
         return bool(response)
 
+    # Summary: Preserve the current remote-management port when changing access.
+    # Related files: switch.py, tests/test_settings.py.
     async def async_set_web_accesslist_enable(self, enable: bool) -> bool:
         if not self._beta_ui:
             return False
+        async with self._settings_lock:
+            rows = await self._async_read_setting("acl/config", list)
+            matches = [row for row in rows if isinstance(row, dict) and row.get("ntag") == "wan1"]
+            if len(matches) != 1 or not isinstance(matches[0].get("open"), dict):
+                raise HomeAssistantError("Remote management settings are missing or ambiguous")
+            port = _setting_int(matches[0]["open"], "port", 1, 65535)
+            return await self._async_write_setting(
+                "acl/config", {"ntag": "wan1", "open": {"flag": bool(enable), "port": port}}
+            )
 
-        # wan1 항목 찾기
-        wan1 = None
-        if "acl" in self.web_result:
-            for entry in self.web_result["acl"]:
-                if entry.get("ntag") == "wan1":
-                    wan1 = entry
-                    break
-        
-        if wan1:
-            port = wan1.get("open", {}).get("port", 80)
-            params = {"ntag": "wan1", "open": {"flag": bool(enable), "port": port}}
-            response = await self._async_service_json("acl/config", params)
-            if not response.get("error"):
-                self._last_caching_time = 0.0 # 캐시 강제 만료
-                return True
-            return False
-        return False
-
+    # Summary: Preserve the router's ARP packet threshold when toggling protection.
+    # Related files: switch.py, tests/test_settings.py.
     async def async_set_security_switch(self, key: str, value: bool) -> bool:
-        """보안 스위치 설정 변경 (dos/config 기반)"""
         if not self._beta_ui:
             return False
-
-        success = False
-        if key in ["syn_flood", "smurf", "ip_source_routing", "ip_spoofing", "inbound_ping", "outbound_ping"]:
-            params = {key: bool(value)}
-            response = await self._async_service_json("dos/config", params)
-            success = not response.get("error")
-        
-        elif key == "csrf":
+        if key == "arp_virus":
+            async with self._settings_lock:
+                config = await self._async_read_setting("dos/config")
+                arp = config.get("arp_virus")
+                if not isinstance(arp, dict):
+                    raise HomeAssistantError("ARP protection settings are missing")
+                pps = _setting_int(arp, "pps", 0)
+                return await self._async_write_setting(
+                    "dos/config", {"arp_virus": {"run": bool(value), "pps": pps}}
+                )
+        if key == "csrf":
             params = {"csrf": {"run": bool(value)}}
-            response = await self._async_service_json("dos/config", params)
-            success = not response.get("error")
-            
-        elif key == "arp_virus":
-            pps = 5
-            if "security_dos" in self.web_result and "arp_virus" in self.web_result["security_dos"]:
-                pps = self.web_result["security_dos"]["arp_virus"].get("pps", 5)
-            params = {"arp_virus": {"run": bool(value), "pps": pps}}
-            response = await self._async_service_json("dos/config", params)
-            success = not response.get("error")
+        elif key in ("syn_flood", "smurf", "ip_source_routing", "ip_spoofing", "inbound_ping", "outbound_ping"):
+            params = {key: bool(value)}
+        else:
+            return False
+        return await self._async_write_setting("dos/config", params)
 
-        if success:
-            self._last_caching_time = 0.0 # 캐시 강제 만료
-        return success
-
-    async def async_set_web_led_config(self, mode: str, on_time: int = 22, off_time: int = 8) -> bool:
-        # 요약: 나이트 LED 모드를 변경한다. (연결될 파일: select.py)
-        # 스케줄 정보가 누락되어 작동 안 하는 결함을 예방하기 위해, 항상 on, off 파라미터를 동반 주입
+    # Summary: Preserve router-provided LED times when only changing the mode.
+    # Related files: select.py, tests/test_settings.py.
+    async def async_set_web_led_config(
+        self, mode: str, on_time: int | None = None, off_time: int | None = None
+    ) -> bool:
         if not self._beta_ui:
             return False
-        params: Dict[str, Any] = {
-            "mode": mode,
-            "on": int(on_time),
-            "off": int(off_time),
-            "commit": True
-        }
-        response = await self._async_service_json("led/config", params)
-        if not response.get("error"):
-            self._last_caching_time = 0.0 # 캐시 강제 만료
-            return True
-        return False
+        if mode not in ("on", "off", "schedule"):
+            raise HomeAssistantError("Invalid Night LED mode")
+        async with self._settings_lock:
+            current = dict(await self._async_read_setting("led/config"))
+            if on_time is not None:
+                current["on"] = on_time
+            if off_time is not None:
+                current["off"] = off_time
+            params = {
+                "mode": mode, "on": _setting_int(current, "on", 0, 23),
+                "off": _setting_int(current, "off", 0, 23), "commit": True,
+            }
+            return await self._async_write_setting("led/config", params)
 
     async def async_set_web_upnp_enable(self, enable: bool) -> bool:
         # UPnP 설정 (연결될 파일: switch.py)
@@ -968,35 +995,39 @@ class IPTimeAPI:
             return True
         return False
 
-    async def async_set_web_reboot_timer(self, run: bool, hour: int = 4, min_time: int = 0, days: List[str] = ["Fri"]) -> bool:
-        # 자동 재시작 설정 (연결될 파일: switch.py)
+    # Summary: Change only requested schedule fields, retaining fresh router values.
+    # Related files: switch.py, select.py, tests/test_settings.py.
+    async def async_set_web_reboot_timer(
+        self, run: bool | None, hour: int | None = None,
+        min_time: int | None = None, days: List[str] | None = None,
+    ) -> bool:
         if not self._beta_ui:
             return False
-        params = {
-            "run": bool(run),
-            "hour": int(hour),
-            "min": int(min_time),
-            "days": days
-        }
-        response = await self._async_service_json("reboot/timer", params)
-        if not response.get("error"):
-            self._last_caching_time = 0.0 # 캐시 강제 만료
-            return True
-        return False
+        async with self._settings_lock:
+            current = dict(await self._async_read_setting("reboot/timer"))
+            for key, value in (("run", run), ("hour", hour), ("min", min_time), ("days", days)):
+                if value is not None:
+                    current[key] = value
+            params = {
+                "run": _setting_bool(current, "run"),
+                "hour": _setting_int(current, "hour", 0, 23),
+                "min": _setting_int(current, "min", 0, 59),
+                "days": _setting_days(current),
+            }
+            return await self._async_write_setting("reboot/timer", params)
 
-    async def async_set_web_wan_heartbeat(self, run: bool, interval: int = 3) -> bool:
-        # WAN포트 끊김 시 재연결 설정 (연결될 파일: switch.py)
+    # Summary: Retain the router's WAN detection interval when toggling reconnection.
+    # Related files: switch.py, tests/test_settings.py.
+    async def async_set_web_wan_heartbeat(self, run: bool, interval: int | None = None) -> bool:
         if not self._beta_ui:
             return False
-        params = {
-            "run": bool(run),
-            "interval": int(interval)
-        }
-        response = await self._async_service_json("wan/heartbeat", params)
-        if not response.get("error"):
-            self._last_caching_time = 0.0 # 캐시 강제 만료
-            return True
-        return False
+        async with self._settings_lock:
+            current = dict(await self._async_read_setting("wan/heartbeat"))
+            if interval is not None:
+                current["interval"] = interval
+            return await self._async_write_setting(
+                "wan/heartbeat", {"run": bool(run), "interval": _setting_int(current, "interval", 0)}
+            )
 
     # Summary: Bound legacy login attempts and classify rejected credentials.
     # Related files: config_flow.py, coordinator.py.
@@ -1299,36 +1330,26 @@ class IPTimeAPI:
 
 
 
+    # Summary: Preserve the actual WireGuard address, port and NAT setting on toggles.
+    # Related files: switch.py, tests/test_settings.py.
     async def async_set_web_wg_server_run(self, run: bool) -> bool:
-        """WireGuard 서버 실행 상태를 변경한다. (연결될 파일: switch.py)"""
-        if is_easymesh_agent(self.web_result):
+        if not self._beta_ui or is_easymesh_agent(self.web_result):
             return False
-        wg_config = self.web_result.get("wg_server", {})
-        if not isinstance(wg_config, dict):
-            wg_config = {}
-
-        # 펌웨어 유효성 검사 통과를 위해, 오직 리얼 필수 4대 스펙 필드(active, address, port, nat)와 commit만 전송
-        params = {
-            "active": bool(run),
-            "address": wg_config.get("ip", "10.0.21.1"),
-            "port": int(wg_config.get("port", 53344)),
-            "nat": bool(wg_config.get("nat", True)),
-            "commit": True
-        }
-
-        try:
-            response = await self._async_service_json("wg/server/set", params)
-            if not response.get("error"):
-                _LOGGER.info(f"WireGuard 서버 실행 상태 변경 완료 (wg/server/set): active={run}")
-                self._last_caching_time = 0.0 # 캐시 강제 만료
-                return True
-            else:
-                _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 중 API 오류: {response.get('error')}")
-        except (ConfigEntryAuthFailed, aiohttp.ClientError, TimeoutError):
-            raise
-        except Exception as err:
-            _LOGGER.warning(f"WireGuard 서버 실행 상태 변경 실패: {err}")
-        return False
+        async with self._settings_lock:
+            current = await self._async_read_setting("wg/server/show")
+            address = current.get("address")
+            if not isinstance(address, str) or not address:
+                raise HomeAssistantError("The router did not provide its WireGuard address")
+            try:
+                ip_interface(address)
+            except ValueError as err:
+                raise HomeAssistantError("The router returned an invalid WireGuard address") from err
+            params = {
+                "active": bool(run), "address": address,
+                "port": _setting_int(current, "port", 1, 65535),
+                "nat": _setting_bool(current, "nat"), "commit": True,
+            }
+            return await self._async_write_setting("wg/server/set", params)
 
     async def async_set_web_portforward_enable(self, enable: bool) -> bool:
         """포트포워딩 기능의 활성화 상태를 제어한다. (연결될 파일: switch.py)"""
@@ -1437,37 +1458,28 @@ class IPTimeAPI:
             return clean_channels
         return ["auto"]
 
+    # Summary: Preserve the current radio enable state when changing its channel.
+    # Related files: select.py, tests/test_settings.py.
     async def async_set_wireless_channel(self, band: str, channel: str) -> bool:
-        """특정 무선 대역의 채널을 변경한다. (연결될 파일: select.py)"""
         if not self._beta_ui:
             return False
-            
-        ch_val = "auto" if str(channel).lower() == "auto" else channel
-        
-        # 기존 무선 대역 정보가 있으면 상태 필드를 최대한 보존해서 호출
-        enable = True
-        if "wireless" in self.web_result and "band" in self.web_result["wireless"]:
-            for b in self.web_result["wireless"]["band"]:
-                if str(b.get("band")).lower() == str(band).lower():
-                    enable = bool(b.get("enable", True))
-                    break
-
-        params = {
-            "band": band,
-            "channel": ch_val,
-            "enable": enable,
-            "commit": True
-        }
-        
-        _LOGGER.info(f"Wi-Fi 채널 변경 요청: band={band}, channel={ch_val}")
-        response = await self._async_service_json("wireless/band/set", params)
-        if not response.get("error"):
-            self._last_caching_time = 0.0 # 캐시 강제 만료
-            return True
-        else:
-            _LOGGER.warning(f"Wi-Fi 채널 변경 중 API 오류: {response.get('error')}")
-            
-        return False
+        async with self._settings_lock:
+            current = {}
+            for method in ("wireless/band/show", "wireless/band/info"):
+                rows = await self._async_read_setting(method, list)
+                matches = [
+                    row for row in rows if isinstance(row, dict)
+                    and str(row.get("band")).lower() == str(band).lower()
+                ]
+                if len(matches) > 1:
+                    raise HomeAssistantError("The router returned ambiguous wireless band settings")
+                if matches:
+                    current.update(matches[0])
+            params = {
+                "band": band, "channel": channel,
+                "enable": _setting_bool(current, "enable"), "commit": True,
+            }
+            return await self._async_write_setting("wireless/band/set", params)
 
 
 
